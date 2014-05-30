@@ -74,6 +74,11 @@ namespace mongo {
 
     void HeapRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
         HeapRecord* rec = recordFor(loc);
+
+        // Declare Write Intent
+        HeapRecoveryUnit *hru = reinterpret_cast<HeapRecoveryUnit*>(txn->recoveryUnit());
+        hru->declareWriteIntent(loc, HeapRecoveryUnit::DELETE , this);
+
         _dataSize -= rec->netLength();
         invariant(_records.erase(loc) == 1);
     }
@@ -119,10 +124,16 @@ namespace mongo {
         const int lengthWithHeaders = len + HeapRecord::HeaderSize;
         boost::shared_array<char> buf(new char[lengthWithHeaders]);
         HeapRecord* rec = reinterpret_cast<HeapRecord*>(buf.get());
+
+        const DiskLoc loc = allocateLoc();
+
+        // Declare Write Intent
+        HeapRecoveryUnit *hru = reinterpret_cast<HeapRecoveryUnit*>(txn->recoveryUnit());
+        hru->declareWriteIntent(loc, HeapRecoveryUnit::INSERT , this);
+
         rec->lengthWithHeaders() = lengthWithHeaders;
         memcpy(rec->data(), data, len);
 
-        const DiskLoc loc = allocateLoc();
         _records[loc] = buf;
         _dataSize += len;
 
@@ -146,12 +157,21 @@ namespace mongo {
         const int lengthWithHeaders = len + HeapRecord::HeaderSize;
         boost::shared_array<char> buf(new char[lengthWithHeaders]);
         HeapRecord* rec = reinterpret_cast<HeapRecord*>(buf.get());
-        rec->lengthWithHeaders() = lengthWithHeaders;
-        doc->writeDocument(rec->data());
 
         const DiskLoc loc = allocateLoc();
+
+        // Declare Write Intent
+        HeapRecoveryUnit *hru = reinterpret_cast<HeapRecoveryUnit*>(txn->recoveryUnit());
+        hru->declareWriteIntent(loc, HeapRecoveryUnit::INSERT , this);
+
+        rec->lengthWithHeaders() = lengthWithHeaders;
+
+
         _records[loc] = buf;
         _dataSize += len;
+
+        doc->writeDocument(rec->data());
+
 
         cappedDeleteAsNeeded(txn);
 
@@ -164,12 +184,17 @@ namespace mongo {
                                                       int len,
                                                       bool enforceQuota,
                                                       UpdateMoveNotifier* notifier ) {
+        // TODO make this work as much as possible
         HeapRecord* oldRecord = recordFor( oldLocation );
         int oldLen = oldRecord->netLength();
 
         // If the length of the new data is <= the length of the old data then just
         // memcopy into the old space
         if ( len <= oldLen) {
+            // Declare Write Intent
+            HeapRecoveryUnit *hru = reinterpret_cast<HeapRecoveryUnit*>(txn->recoveryUnit());
+            hru->declareWriteIntent(oldLocation, HeapRecoveryUnit::UPDATE , this);
+
             memcpy(oldRecord->data(), data, len);
             _dataSize += len - oldLen;
             return StatusWith<DiskLoc>(oldLocation);
@@ -343,6 +368,41 @@ namespace mongo {
         return _dataSize + recordOverhead;
     }
 
+
+    bool HeapRecordStore::hasRecordFor(const DiskLoc& loc) const {
+        return _records.find(loc) != _records.end();
+    }
+
+    boost::shared_array<char> HeapRecordStore::simpleLookup(const DiskLoc& loc) {
+        invariant(hasRecordFor(loc));
+        return _records[loc];
+    }
+
+    void HeapRecordStore::simpleInsert(const DiskLoc& loc, boost::shared_array<char> const rec) {
+        invariant(!hasRecordFor(loc));
+
+        _records[loc] = rec;
+        _dataSize += reinterpret_cast<Record*>(rec.get())->netLength();
+    }
+
+    void HeapRecordStore::simpleDelete(const DiskLoc& loc){
+        invariant(hasRecordFor(loc));
+        Record* rec = recordFor(loc);
+        _dataSize -= rec->netLength();
+        invariant(_records.erase(loc) == 1);
+    }
+
+    void HeapRecordStore::simpleUpdate(const DiskLoc& loc, const boost::shared_array<char> rec) {
+        Record* oldRec = recordFor(loc);
+        int oldSize = oldRec->netLength();
+
+        Record* newRec = reinterpret_cast<Record*>(rec.get());
+
+        memcpy(oldRec, rec.get(), newRec->lengthWithHeaders());
+
+        _dataSize += newRec->netLength() - oldSize;
+    }
+
     DiskLoc HeapRecordStore::allocateLoc() {
         const int64_t id = _nextId++;
         // This is a hack, but both the high and low order bits of DiskLoc offset must be 0, and the
@@ -418,7 +478,7 @@ namespace mongo {
                 if (_lastLoc == loc) {
                     _killedByInvalidate = true;
                 }
-            } 
+            }
             else if (_it->first == loc) {
                 _killedByInvalidate = true;
             }

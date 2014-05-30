@@ -159,6 +159,31 @@ namespace mongo {
         bool cappedMaxDocs() const { invariant(_isCapped); return _cappedMaxDocs; }
         bool cappedMaxSize() const { invariant(_isCapped); return _cappedMaxSize; }
 
+        /**
+         * returns true if there is currently a record at location loc, and false otherwise
+         */
+        bool hasRecordFor(const DiskLoc& loc) const;
+
+        /**
+         * Returns the value associated with the key loc. loc must be a key in _records
+         */
+        boost::shared_array<char> simpleLookup(const DiskLoc& loc);
+
+        /**
+         * inserts the record into the location loc. This should only be called by HeapRecoveryUnit
+         */
+        void simpleInsert(const DiskLoc& loc, boost::shared_array<char> const rec);
+
+        /**
+         * deletes the data at location loc. This should only be called by HeapRecoveryUnit
+         */
+        void simpleDelete(const DiskLoc& loc);
+
+        /**
+         * Updates the data at location loc with the data in rec
+         */
+        void simpleUpdate(const DiskLoc& loc, const boost::shared_array<char> rec);
+
     private:
         DiskLoc allocateLoc();
         bool cappedAndNeedDelete() const;
