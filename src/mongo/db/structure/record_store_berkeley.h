@@ -32,6 +32,7 @@
 
 #include <boost/shared_array.hpp>
 #include <map>
+#include <db_cxx.h>
 
 #include "mongo/db/structure/capped_callback.h"
 #include "mongo/db/structure/record_store.h"
@@ -46,12 +47,12 @@ namespace mongo {
      */
     class BerkeleyRecordStore : public RecordStore {
     public:
-        explicit BerkeleyRecordStore(const StringData& ns,
+        explicit BerkeleyRecordStore(DbEnv env,
+                                 const StringData& ns,
                                  bool isCapped = false,
                                  int64_t cappedMaxSize = -1,
                                  int64_t cappedMaxDocs = -1,
-                                 CappedDocumentDeleteCallback* cappedDeleteCallback = NULL,
-                                 DbEnv env);
+                                 CappedDocumentDeleteCallback* cappedDeleteCallback = NULL);
 
         virtual const char* name() const;
 
@@ -115,7 +116,7 @@ namespace mongo {
 
         virtual long long dataSize() const { return _dataSize; }
 
-        virtual long long numRecords() const { return _records.size(); }
+        virtual long long numRecords() const { return _numRecords; }
 
         //
         // Not in RecordStore interface
@@ -143,9 +144,11 @@ namespace mongo {
         const bool _isCapped;
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
+        long long _numRecords;
+        long long _dataSize;
         CappedDocumentDeleteCallback* const _cappedDeleteCallback;
         Db db;
-        boost::shared_array readBuffer;
+        boost::shared_array<char> readBuffer;
     };
 
     class BerkeleyRecordIterator : public RecordIterator {

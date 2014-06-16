@@ -31,6 +31,8 @@
 
 #include "mongo/db/structure/record_store_berkeley.h"
 
+#include <db_cxx.h>
+
 #include "mongo/db/storage/record.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
@@ -41,19 +43,20 @@ namespace mongo {
     // RecordStore
     //
 
-    BerkeleyRecordStore::BerkeleyRecordStore(const StringData& ns,
+    BerkeleyRecordStore::BerkeleyRecordStore(DbEnv env,
+                                     const StringData& ns,
                                      bool isCapped,
                                      int64_t cappedMaxSize,
                                      int64_t cappedMaxDocs,
-                                     CappedDocumentDeleteCallback* cappedDeleteCallback,
-                                     DbEnv env)
+                                     CappedDocumentDeleteCallback* cappedDeleteCallback)
             : RecordStore(ns),
               _isCapped(isCapped),
               _cappedMaxSize(cappedMaxSize),
               _cappedMaxDocs(cappedMaxDocs),
               _cappedDeleteCallback(cappedDeleteCallback),
               _dataSize(0),
-              _nextId(1) { // DiskLoc(0,0) isn't valid for records.
+              _nextId(1),
+              _numRecords(0) { // DiskLoc(0,0) isn't valid for records.
 
         if (_isCapped) {
             invariant(_cappedMaxSize > 0);
@@ -93,7 +96,7 @@ namespace mongo {
     Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {
         Dbt key, value;
 
-        key.setData(&loc);
+        key.set_data(&loc);
         key.set_size(sizeof(DiskLoc));
 
         
@@ -112,7 +115,7 @@ namespace mongo {
     void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
         Dbt key;
 
-        key.setData(&loc);
+        key.set_data(&loc);
         key.set_size(sizeof(DiskLoc));
 
         db.del(txn->GetTransaction(), key);
@@ -132,7 +135,7 @@ namespace mongo {
                                                       int quotaMax) {
         Dbt key, value;
 
-        key.setData(&loc);
+        key.set_data(&loc);
         key.set_size(sizeof(DiskLoc));
 
         if (_isCapped && len > _cappedMaxSize) {
@@ -150,7 +153,11 @@ namespace mongo {
         memcpy(rec->data(), data, len);
 
         const DiskLoc loc = allocateLoc();
-        _records[loc] = buf;
+        
+        value.set_size(lengthWithHeaders);
+        value.set_data(rec);
+        db.put(txn->getTransaction(), &key, &value, DB_NOOVERWRITE);
+
         _dataSize += len;
 
         cappedDeleteAsNeeded(txn);

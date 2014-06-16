@@ -58,8 +58,12 @@ namespace mongo {
 
         virtual const char * getNS() const;
 
+        // not in OperationContext API
+        Env& getEnv() { return _environment; }
+
     private:
         boost::scoped_ptr<RecoveryUnitNoop> _recoveryUnit;
+        Env& _environment;
         virtual Env OpenEnv();
     };
 

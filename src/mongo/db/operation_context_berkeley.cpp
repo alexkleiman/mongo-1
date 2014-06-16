@@ -34,10 +34,9 @@ namespace mongo {
 
     class OperationContextBerkeley : public OperationContext {
     public:
-        OperationContextBerkeley(/* DbEnv env */) {
-            // Open the Environment
-
-            _recoveryUnit.reset(new BerkeleyRecoveryUnit(OpenEnv()));
+        OperationContextBerkeley(/* DbEnv env */) _environment(OpenEnv()){
+            // Open the Environment, DB
+            _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
         }
 
         virtual ~OperationContextBerkeley() {
