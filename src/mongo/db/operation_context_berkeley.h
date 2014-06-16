@@ -27,9 +27,11 @@
  */
 
 #include <boost/scoped_ptr.hpp>
+#include <db_cxx.h>
 #include <string>
 
 #include "mongo/db/operation_context.h"
+#include "mongo/db/operation_context_noop.h"
 #pragma once
 
 namespace mongo {
@@ -52,19 +54,19 @@ namespace mongo {
 
         virtual void checkForInterrupt(bool heedMutex = true) const;
 
-        virtual Status checkForInterruptNoAssert();
+        virtual Status checkForInterruptNoAssert() const;
 
         virtual bool isPrimaryFor( const StringData& ns );
 
         virtual const char * getNS() const;
 
         // not in OperationContext API
-        Env& getEnv() { return _environment; }
+        DbEnv& getEnv() { return _environment; }
 
     private:
         boost::scoped_ptr<RecoveryUnitNoop> _recoveryUnit;
-        Env& _environment;
-        virtual Env OpenEnv();
+        DbEnv& _environment;
+        virtual DbEnv OpenEnv();
     };
 
 }  // namespace mongo

@@ -74,7 +74,7 @@ namespace mongo {
 
     void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
         invariant(_bdbTransaction != NULL);
-        txn->txn_checkpoint(0, 0, 0);
+        _bdbEnv.txn_checkpoint(0, 0, 0);
 
         // TODO figure out what to do in case of error
     }

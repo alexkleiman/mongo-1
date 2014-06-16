@@ -47,7 +47,7 @@ namespace mongo {
      */
     class BerkeleyRecordStore : public RecordStore {
     public:
-        explicit BerkeleyRecordStore(DbEnv env,
+        explicit BerkeleyRecordStore(DbEnv& env,
                                  const StringData& ns,
                                  bool isCapped = false,
                                  int64_t cappedMaxSize = -1,

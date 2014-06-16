@@ -45,7 +45,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, FullSimpleInsert1) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
@@ -59,7 +59,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, FullSimpleDelete1) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
@@ -80,7 +80,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, UpdateSmaller1) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
@@ -98,7 +98,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, UpdateLarger1) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
@@ -118,7 +118,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, MultipleUpdateLarge) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
@@ -157,7 +157,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, RollbackSingleInsertion) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> result = dummyStatusWith;
         Record* record;
@@ -179,7 +179,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, CommitSingleInsertion) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> result = dummyStatusWith;
         Record* record;
@@ -204,7 +204,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, RollbackSingleDeletion) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> result = dummyStatusWith;
 
@@ -232,7 +232,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, CommitSingleDeletion) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> result = dummyStatusWith;
 
@@ -254,7 +254,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, RollbackSingleUpdate) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> insertResult = dummyStatusWith;
         StatusWith<DiskLoc> updateResult = dummyStatusWith;
@@ -283,7 +283,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, CommitSingleUpdate) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> insertResult = dummyStatusWith;
         StatusWith<DiskLoc> updateResult = dummyStatusWith;
@@ -313,7 +313,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, MultiCommitsMixed) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
         StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
@@ -393,7 +393,7 @@ namespace {
 
     TEST(BerkeleyRecordStore, MultiRollbacksMixed) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs("berkeleytest.foo", false, -1, -1, NULL, txn.getEnv());
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
         StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
@@ -494,9 +494,9 @@ namespace {
 
     TEST(BerkeleyRecordStore, MultipleRecordStores) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore firstRs("berkeleytest.foo", false, -1, -1, NULL);
-        BerkeleyRecordStore secondRs("berkeleytest.foo", false, -1, -1, NULL);
-        BerkeleyRecordStore thirdRs("berkeleytest.foo", false, -1, -1, NULL);
+        BerkeleyRecordStore firstRs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
+        BerkeleyRecordStore secondRs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
+        BerkeleyRecordStore thirdRs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
 
         StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
         StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
