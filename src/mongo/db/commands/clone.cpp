@@ -117,6 +117,7 @@ namespace mongo {
             set<string> clonedColls;
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
 
             Cloner cloner;
             bool rval = cloner.go(txn, dbname, from, opts, &clonedColls, errmsg);
@@ -125,6 +126,7 @@ namespace mongo {
             barr.append( clonedColls );
 
             result.append( "clonedColls", barr.arr() );
+            wunit.commit();
 
             return rval;
 

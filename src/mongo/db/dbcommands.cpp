@@ -182,6 +182,7 @@ namespace mongo {
                 // this is suboptimal but syncDataAndTruncateJournal is called from dropDatabase,
                 // and that may need a global lock.
                 Lock::GlobalWrite lk(txn->lockState());
+                WriteUnitOfWork wunit(txn->recoveryUnit());
                 Client::Context context(dbname);
 
                 log() << "dropDatabase " << dbname << " starting" << endl;
@@ -193,6 +194,8 @@ namespace mongo {
 
                 if (!fromRepl)
                     repl::logOp(txn, "c",(dbname + ".$cmd").c_str(), cmdObj);
+
+                wunit.commit();
             }
 
             result.append( "dropped" , dbname );
@@ -332,6 +335,7 @@ namespace mongo {
             // in the local database.
             //
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(dbname);
 
             BSONElement e = cmdObj.firstElement();
@@ -351,6 +355,7 @@ namespace mongo {
             if ( slow.isNumber() )
                 serverGlobalParams.slowMS = slow.numberInt();
 
+            wunit.commit();
             return ok;
         }
     } cmdProfile;
@@ -382,6 +387,7 @@ namespace mongo {
             // locking, but originally the lock was set to be WRITE, so preserving the behaviour.
             //
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(dbname);
 
             int was = _diaglog.setLevel( cmdObj.firstElement().numberInt() );
@@ -390,6 +396,7 @@ namespace mongo {
                 LOG(0) << "CMD: diagLogging set to " << _diaglog.getLevel() << " from: " << was << endl;
             }
             result.append( "was" , was );
+            wunit.commit();
             return true;
         }
     } cmddiaglogging;
@@ -437,6 +444,7 @@ namespace mongo {
             }
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(nsToDrop);
             Database* db = ctx.db();
 
@@ -456,15 +464,18 @@ namespace mongo {
 
             Status s = db->dropCollection( txn, nsToDrop );
 
-            if ( s.isOK() ) {
-                if (!fromRepl)
-                    repl::logOp(txn, "c",(dbname + ".$cmd").c_str(), cmdObj);
-                return true;
+            if ( !s.isOK() ) {
+                appendCommandStatus( result, s );
+
+                return false;
             }
             
-            appendCommandStatus( result, s );
+            if ( !fromRepl ) {
+                repl::logOp(txn, "c",(dbname + ".$cmd").c_str(), cmdObj);
+            }
+            wunit.commit();
+            return true;
 
-            return false;
         }
     } cmdDrop;
 
@@ -601,11 +612,17 @@ namespace mongo {
                         options.hasField("$nExtents"));
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(ns);
 
             // Create collection.
-            return appendCommandStatus( result,
-                                        userCreateNS(txn, ctx.db(), ns.c_str(), options, !fromRepl) );
+            status =  userCreateNS(txn, ctx.db(), ns.c_str(), options, !fromRepl);
+            if ( !status.isOK() ) {
+                return appendCommandStatus( result, status );
+            }
+
+            wunit.commit();
+            return true;
         }
     } cmdCreate;
 
@@ -715,6 +732,7 @@ namespace mongo {
 
         bool run(OperationContext* txn, const string& dbname , BSONObj& jsobj, int, string& errmsg, BSONObjBuilder& result, bool /*fromRepl*/) {
             Lock::GlobalWrite globalWriteLock(txn->lockState());
+            // No WriteUnitOfWork necessary, as no actual writes happen.
             Client::Context ctx(dbname);
 
             try {
@@ -1096,6 +1114,7 @@ namespace mongo {
             const string ns = dbname + "." + jsobj.firstElement().valuestr();
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx( ns );
 
             Collection* coll = ctx.db()->getCollection( txn, ns );
@@ -1177,11 +1196,17 @@ namespace mongo {
                     }
                 }
             }
-            
-            if (ok && !fromRepl)
-                repl::logOp(txn, "c",(dbname + ".$cmd").c_str(), jsobj);
 
-            return ok;
+            if (!ok) {
+                return false;
+            }
+            
+            if (!fromRepl) {
+                repl::logOp(txn, "c",(dbname + ".$cmd").c_str(), jsobj);
+            }
+
+            wunit.commit();
+            return true;
         }
 
     } collectionModCommand;

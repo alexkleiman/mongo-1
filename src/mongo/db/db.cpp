@@ -263,6 +263,7 @@ namespace mongo {
         OperationContextImpl txn;
 
         Lock::GlobalWrite lk(txn.lockState());
+        //  No WriteUnitOfWork, as DirectClient creats its own units of work
         DBDirectClient c(&txn);
 
         static const char* name = "local.startup_log";
@@ -334,8 +335,8 @@ namespace mongo {
         LOG(1) << "enter repairDatabases (to check pdfile version #)" << endl;
 
         OperationContextImpl txn;
-
         Lock::GlobalWrite lk(txn.lockState());
+        WriteUnitOfWork wunit(txn.recoveryUnit());
 
         vector< string > dbNames;
         globalStorageEngine->listDatabases( &dbNames );
@@ -405,6 +406,7 @@ namespace mongo {
                 Database::closeDatabase(&txn, dbName.c_str());
             }
         }
+        wunit.commit();
 
         LOG(1) << "done repairDatabases" << endl;
 

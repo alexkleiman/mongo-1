@@ -52,6 +52,7 @@ namespace QueryStageMergeSortTests {
         virtual ~QueryStageMergeSortTestBase() {
             Client::WriteContext ctx(&_txn, ns());
             _client.dropCollection(ns());
+            ctx.commit();
         }
 
         void addIndex(const BSONObj& obj) {
@@ -148,6 +149,7 @@ namespace QueryStageMergeSortTests {
             // b:1
             params.descriptor = getIndex(secondIndex, coll);
             ms->addChild(new IndexScan(params, ws, NULL));
+            ctx.commit();
 
             // Must fetch if we want to easily pull out an obj.
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
@@ -212,6 +214,7 @@ namespace QueryStageMergeSortTests {
             // b:1
             params.descriptor = getIndex(secondIndex, coll);
             ms->addChild(new IndexScan(params, ws, NULL));
+            ctx.commit();
 
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
 
@@ -275,6 +278,7 @@ namespace QueryStageMergeSortTests {
             // b:1
             params.descriptor = getIndex(secondIndex, coll);
             ms->addChild(new IndexScan(params, ws, NULL));
+            ctx.commit();
 
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
 
@@ -341,6 +345,7 @@ namespace QueryStageMergeSortTests {
             // b:1
             params.descriptor = getIndex(secondIndex, coll);
             ms->addChild(new IndexScan(params, ws, NULL));
+            ctx.commit();
 
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
 
@@ -406,6 +411,7 @@ namespace QueryStageMergeSortTests {
             params.bounds.startKey = BSON("" << 51 << "" << MinKey);
             params.bounds.endKey = BSON("" << 51 << "" << MaxKey);
             ms->addChild(new IndexScan(params, ws, NULL));
+            ctx.commit();
 
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
 
@@ -459,6 +465,7 @@ namespace QueryStageMergeSortTests {
                 params.descriptor = getIndex(indexSpec, coll);
                 ms->addChild(new IndexScan(params, ws, NULL));
             }
+            ctx.commit();
 
             PlanExecutor runner(ws, new FetchStage(ws, ms, NULL, coll), coll);
 
@@ -519,6 +526,7 @@ namespace QueryStageMergeSortTests {
             getLocs(&locs, coll);
 
             set<DiskLoc>::iterator it = locs.begin();
+            ctx.commit();
 
             // Get 10 results.  Should be getting results in order of 'locs'.
             int count = 0;

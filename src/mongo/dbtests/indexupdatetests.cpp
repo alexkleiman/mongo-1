@@ -61,6 +61,7 @@ namespace IndexUpdateTests {
         }
         ~IndexBuildBase() {
             _client.dropCollection( _ns );
+            _ctx.commit();
             getGlobalEnvironment()->unsetKillAllOperations();
         }
         Collection* collection() {
@@ -471,6 +472,7 @@ namespace IndexUpdateTests {
     public:
         void run() {
             OperationContextImpl txn;
+            WriteUnitOfWork wunit (txn.recoveryUnit());
             // Insert some documents.
             int32_t nDocs = 1000;
             for( int32_t i = 0; i < nDocs; ++i ) {
@@ -483,6 +485,7 @@ namespace IndexUpdateTests {
             // The call is not interrupted.
             Helpers::ensureIndex( &txn, collection(), BSON( "a" << 1 ), false, "a_1" );
             // only want to interrupt the index build
+            wunit.commit();
             getGlobalEnvironment()->unsetKillAllOperations();
             // The new index is listed in system.indexes because the index build completed.
             ASSERT_EQUALS( 1U,

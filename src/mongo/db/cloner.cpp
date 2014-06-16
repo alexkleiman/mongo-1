@@ -118,9 +118,11 @@ namespace mongo {
                              << "collection dropped during clone ["
                              << to_collection << "]",
                              !createdCollection );
+                    WriteUnitOfWork wunit(txn->recoveryUnit());
                     createdCollection = true;
                     collection = db->createCollection( txn, to_collection );
                     verify( collection );
+                    wunit.commit();
                 }
             }
 
@@ -146,6 +148,7 @@ namespace mongo {
                 }
 
                 ++numSeen;
+                WriteUnitOfWork wunit(txn->recoveryUnit());
 
                 BSONObj js = tmp;
                 if ( isindex ) {
@@ -166,6 +169,7 @@ namespace mongo {
                 if (logForRepl)
                     repl::logOp(txn, "i", to_collection, js);
 
+                wunit.commit();
                 txn->recoveryUnit()->commitIfNeeded();
 
                 RARELY if ( time( 0 ) - saveLast > 60 ) {
@@ -299,6 +303,7 @@ namespace mongo {
 
         const NamespaceString nss(ns);
         Lock::DBWrite dbWrite(txn->lockState(), nss.db());
+        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         const string dbName = nss.db().toString();
 
@@ -331,6 +336,7 @@ namespace mongo {
         copy(txn, dbName, temp.c_str(), temp.c_str(), true, logForRepl, false, true, mayYield,
              mayBeInterrupted, BSON( "ns" << ns ));
 
+        wunit.commit();
         txn->recoveryUnit()->commitIfNeeded();
         return true;
     }

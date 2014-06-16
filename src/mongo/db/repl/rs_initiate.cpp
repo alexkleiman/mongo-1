@@ -198,6 +198,7 @@ namespace repl {
                 // are up.
                 time_t t = time(0);
                 Lock::GlobalWrite lk(txn->lockState());
+                // No real writes here, so no WriteUnitOfWork necessary
                 if( time(0)-t > 10 ) {
                     errmsg = "took a long time to get write lock, so not initiating.  Initiate when server less busy?";
                     return false;
@@ -271,6 +272,7 @@ namespace repl {
                 createOplog();
 
                 Lock::GlobalWrite lk(txn->lockState());
+                WriteUnitOfWork wunit(txn->recoveryUnit());
                 bo comment = BSON( "msg" << "initiating set");
                 newConfig->saveConfigLocally(comment);
                 log() << "replSet replSetInitiate config now saved locally.  "
@@ -280,6 +282,7 @@ namespace repl {
                 ReplSet::startupStatus = ReplSet::SOON;
                 ReplSet::startupStatusMsg.set("Received replSetInitiate - "
                                               "should come online shortly.");
+                wunit.commit();
             }
             catch( DBException& e ) {
                 log() << "replSet replSetInitiate exception: " << e.what() << rsLog;

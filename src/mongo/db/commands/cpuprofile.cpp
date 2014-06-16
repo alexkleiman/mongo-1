@@ -136,6 +136,7 @@ namespace mongo {
                                            BSONObjBuilder &result,
                                            bool fromRepl ) {
             Lock::DBWrite dbXLock(db);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(db);
 
             std::string profileFilename = cmdObj[commandName]["profileFilename"].String();
@@ -143,6 +144,7 @@ namespace mongo {
                 errmsg = "Failed to start profiler";
                 return false;
             }
+            wunit.commit();
             return true;
         }
 
@@ -154,9 +156,11 @@ namespace mongo {
                                           BSONObjBuilder &result,
                                           bool fromRepl ) {
             Lock::DBWrite dbXLock(db);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(db);
 
             ::ProfilerStop();
+            wunit.commit();
             return true;
         }
 

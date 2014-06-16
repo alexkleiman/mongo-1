@@ -57,7 +57,7 @@ namespace QueryTests {
     protected:
         OperationContextImpl _txn;
         Lock::GlobalWrite _lk;
-
+        WriteUnitOfWork _wunit;
         Client::Context _context;
 
         Database* _database;
@@ -65,8 +65,8 @@ namespace QueryTests {
 
     public:
         Base() : _lk(_txn.lockState()),
+                 _wunit(_txn.recoveryUnit()),
                  _context(ns()) {
-
             _database = _context.db();
             _collection = _database->getCollection( &_txn, ns() );
             if ( _collection ) {
@@ -78,6 +78,7 @@ namespace QueryTests {
         ~Base() {
             try {
                 uassertStatusOK( _database->dropCollection( &_txn, ns() ) );
+                _wunit.commit();
             }
             catch ( ... ) {
                 FAIL( "Exception while cleaning up collection" );
@@ -250,12 +251,14 @@ namespace QueryTests {
             {
                 // Check internal server handoff to getmore.
                 Lock::DBWrite lk(_txn.lockState(), ns);
+                WriteUnitOfWork wunit(_txn.recoveryUnit());
                 Client::Context ctx( ns );
                 ClientCursorPin clientCursor( ctx.db()->getCollection(&_txn, ns), cursorId );
                 // pq doesn't exist if it's a runner inside of the clientcursor.
                 // ASSERT( clientCursor.c()->pq );
                 // ASSERT_EQUALS( 2, clientCursor.c()->pq->getNumToReturn() );
                 ASSERT_EQUALS( 2, clientCursor.c()->pos() );
+                wunit.commit();
             }
             
             cursor = client().getMore( ns, cursorId );
@@ -598,6 +601,7 @@ namespace QueryTests {
         void run() {
             const char *ns = "unittests.querytests.OplogReplaySlaveReadTill";
             Lock::DBWrite lk(_txn.lockState(), ns);
+            WriteUnitOfWork wunit(_txn.recoveryUnit());
             Client::Context ctx( ns );
             
             BSONObj info;
@@ -621,6 +625,7 @@ namespace QueryTests {
             
             ClientCursorPin clientCursor( ctx.db()->getCollection( &_txn, ns ), cursorId );
             ASSERT_EQUALS( three.millis, clientCursor.c()->getSlaveReadTill().asDate() );
+            wunit.commit();
         }
     };
 
@@ -1062,7 +1067,9 @@ namespace QueryTests {
         void run() {
             Lock::GlobalWrite lk(_txn.lockState());
             Client::Context ctx( "unittests.DirectLocking" );
+            WriteUnitOfWork wunit(_txn.recoveryUnit());
             client().remove( "a.b", BSONObj() );
+            wunit.commit();
             ASSERT_EQUALS( "unittests", ctx.db()->name() );
         }
         const char *ns;
@@ -1213,6 +1220,7 @@ namespace QueryTests {
             for ( int i=0; i<90; i++ ) {
                 insertNext();
             }
+            ctx.commit();
 
             while ( c->more() ) { c->next(); }
             ASSERT( c->isDead() );
@@ -1240,6 +1248,7 @@ namespace QueryTests {
             for ( int i=0; i<50; i++ ) {
                 insert( ns() , BSON( "_id" << i << "x" << i * 2 ) );
             }
+            ctx.commit();
 
             ASSERT_EQUALS( 50 , count() );
 
@@ -1294,6 +1303,7 @@ namespace QueryTests {
             for ( int i=0; i<1000; i+=2 ) {
                 client_.remove( ns() , BSON( "_id" << i ) );
             }
+            ctx.commit();
 
             BSONObj res;
             for ( int i=0; i<1000; i++ ) {
@@ -1314,7 +1324,7 @@ namespace QueryTests {
             for ( int i=0; i<1000; i++ ) {
                 insert( ns() , BSON( "_id" << i << "x" << i * 2 ) );
             }
-
+            ctx.commit();
 
         }
     };
@@ -1426,11 +1436,17 @@ namespace QueryTests {
         CollectionInternalBase( const char *nsLeaf ) :
           CollectionBase( nsLeaf ),
           _lk(_txn.lockState(), ns() ),
-          _ctx( ns() ) {
+          _ctx( ns() ),
+          _wunit( _txn.recoveryUnit() ) {
         }
+        ~CollectionInternalBase() {
+            _wunit.commit();
+        }
+
     private:
         Lock::DBWrite _lk;
         Client::Context _ctx;
+        WriteUnitOfWork _wunit;
     };
     
     class Exhaust : public CollectionInternalBase {
@@ -1515,6 +1531,7 @@ namespace QueryTests {
                 string expectedAssertion =
                         str::stream() << "Cannot kill active cursor " << cursorId;
                 ASSERT_EQUALS( expectedAssertion, client().getLastError() );
+                ctx.commit();
             }
             
             // Verify that the remaining document is read from the cursor.

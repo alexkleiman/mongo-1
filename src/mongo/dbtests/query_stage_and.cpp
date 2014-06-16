@@ -220,6 +220,7 @@ namespace QueryStageAnd {
                 ASSERT_GREATER_THAN_OR_EQUALS(elt.numberInt(), 10);
             }
 
+            ctx.commit();
             ASSERT_EQUALS(10, count);
         }
     };
@@ -306,6 +307,7 @@ namespace QueryStageAnd {
                 ++count;
             }
 
+            ctx.commit();
             ASSERT_EQUALS(count, 20);
         }
     };
@@ -349,6 +351,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // foo == bar == baz, and foo<=20, bar>=10, so our values are:
             // foo == 10, 11, 12, 13, 14, 15. 16, 17, 18, 19, 20
@@ -403,6 +406,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // Stage execution should fail.
             ASSERT_EQUALS(-1, countResults(ah.get()));
@@ -455,6 +459,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // foo == bar == baz, and foo<=20, bar>=10, so our values are:
             // foo == 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20.
@@ -510,6 +515,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // foo == bar == baz, and foo<=20, bar>=10, 5<=baz<=15, so our values are:
             // foo == 10, 11, 12, 13, 14, 15.
@@ -576,6 +582,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // Stage execution should fail.
             ASSERT_EQUALS(-1, countResults(ah.get()));
@@ -631,6 +638,7 @@ namespace QueryStageAnd {
                 if (PlanStage::ADVANCED != status) { continue; }
                 ++count;
             }
+            ctx.commit();
 
             ASSERT_EQUALS(0, count);
 
@@ -684,6 +692,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = false;
             params.direction = -1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             ASSERT_EQUALS(0, countResults(ah.get()));
         }
@@ -732,6 +741,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // Bar == 97
             ASSERT_EQUALS(1, countResults(ah.get()));
@@ -854,6 +864,7 @@ namespace QueryStageAnd {
                 ASSERT_TRUE(member->getFieldDotted("bar", &elt));
                 ASSERT_EQUALS(1, elt.numberInt());
             }
+            ctx.commit();
 
             ASSERT_EQUALS(count, 48);
 
@@ -910,6 +921,7 @@ namespace QueryStageAnd {
             // baz == 1
             params.descriptor = getIndex(BSON("baz" << 1), coll);
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             ASSERT_EQUALS(50, countResults(ah.get()));
         }
@@ -955,6 +967,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             ASSERT_EQUALS(0, countResults(ah.get()));
         }
@@ -1003,6 +1016,7 @@ namespace QueryStageAnd {
             params.bounds.endKeyInclusive = true;
             params.direction = 1;
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             ASSERT_EQUALS(0, countResults(ah.get()));
         }
@@ -1047,6 +1061,7 @@ namespace QueryStageAnd {
             // bar == 1
             params.descriptor = getIndex(BSON("bar" << 1), coll);
             ah->addChild(new IndexScan(params, &ws, NULL));
+            ctx.commit();
 
             // Filter drops everything.
             ASSERT_EQUALS(0, countResults(ah.get()));
@@ -1107,6 +1122,7 @@ namespace QueryStageAnd {
                 }
                 lastId = id;
             }
+            ctx.commit();
 
             ASSERT_EQUALS(count, 43);
         }

@@ -32,13 +32,13 @@
 #include "mongo/db/storage/mmap_v1/dur.h"
 
 // Remove once we are ready to enable
-#define ROLLBACK_ENABLED 0
+#define ROLLBACK_ENABLED 1
 
 namespace mongo {
 
     DurRecoveryUnit::DurRecoveryUnit(OperationContext* txn)
         : _txn(txn) {
-
+        _nestingLevel = 0;
         _hasWrittenSinceCheckpoint = false;
     }
 

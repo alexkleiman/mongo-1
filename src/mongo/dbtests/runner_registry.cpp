@@ -265,6 +265,7 @@ namespace RunnerRegistry {
 
             // Drop a DB that's not ours.  We can't have a lock at all to do this as dropping a DB
             // requires a "global write lock."
+            _ctx->commit();
             _ctx.reset();
             _client.dropDatabase("somesillydb");
             _ctx.reset(new Client::WriteContext(&_opCtx, ns()));
@@ -281,6 +282,7 @@ namespace RunnerRegistry {
             registerRunner(run.get());
 
             // Drop our DB.  Once again, must give up the lock.
+            _ctx->commit();
             _ctx.reset();
             _client.dropDatabase("unittests");
             _ctx.reset(new Client::WriteContext(&_opCtx, ns()));
@@ -288,6 +290,8 @@ namespace RunnerRegistry {
             // Unregister and restore state.
             deregisterRunner(run.get());
             run->restoreState(&_opCtx);
+            _ctx->commit();
+            _ctx.reset();
 
             // Runner was killed.
             ASSERT_EQUALS(Runner::RUNNER_DEAD, run->getNext(&obj, NULL));

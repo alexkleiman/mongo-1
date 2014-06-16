@@ -137,6 +137,7 @@ namespace {
             // NOTE: It's kind of weird that we lock the op's namespace, but have to for now since
             // we're sometimes inside the lock already
             Lock::DBWrite lk(txn->lockState(), currentOp.getNS() );
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             if (dbHolder().get(txn, nsToDatabase(currentOp.getNS())) != NULL) {
 
                 Client::Context cx(currentOp.getNS(), false);
@@ -146,6 +147,7 @@ namespace {
                 mongo::log() << "note: not profiling because db went away - probably a close on: "
                              << currentOp.getNS() << endl;
             }
+            wunit.commit();
         }
         catch (const AssertionException& assertionEx) {
             warning() << "Caught Assertion while trying to profile " << opToString(op)
