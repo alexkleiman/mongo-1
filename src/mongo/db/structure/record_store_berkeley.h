@@ -32,6 +32,7 @@
 
 #include <boost/shared_array.hpp>
 #include <map>
+#include <db_cxx.h>
 
 #include "mongo/db/structure/capped_callback.h"
 #include "mongo/db/structure/record_store.h"

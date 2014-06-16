@@ -1,3 +1,5 @@
+// berkeley_recovery_unit.cpp
+
 /**
  *    Copyright (C) 2014 MongoDB Inc.
  *
@@ -32,45 +34,45 @@
 
 namespace mongo {
 
-    HeapRecoveryUnit::HeapRecoveryUnit() {
+    void BerkeleyRecoveryUnit::beginUnitOfWork() {
+        invariant(_bdbTransaction == NULL);
+        _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
     }
 
-    void HeapRecoveryUnit::beginUnitOfWork() {
+    void BerkeleyRecoveryUnit::commitUnitOfWork() {
+        invariant(_bdbTransaction != NULL);
+        _txn->commit();
+
+        // TODO figure out what to do in cases of error
+        
+        // start a new transaction so that further calls to commitUnitOfWork() succeed
+        _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
+    }
+
+    void BerkeleyRecoveryUnit::endUnitOfWork() {
+        invariant(_bdbTransaction != NULL);
+        _txn->abort();
+
+        // TODO figure out what to do in cases of error
+    }
+
+    bool BerkeleyRecoveryUnit::awaitCommit() {
         invariant(!"nyi");
     }
 
-    // TODO figure out if this should be sure to do nothing if
-    // beginUnitOfWork() hasn't been called
-    void HeapRecoveryUnit::commitUnitOfWork() {
+    bool BerkeleyRecoveryUnit::commitIfNeeded(bool force) {
         invariant(!"nyi");
     }
 
-    void HeapRecoveryUnit::endUnitOfWork() {
+    bool BerkeleyRecoveryUnit::isCommitNeeded() const {
         invariant(!"nyi");
     }
 
-    bool HeapRecoveryUnit::awaitCommit() {
-        invariant(!"nyi");
+    void* BerkeleyRecoveryUnit::writingPtr(void* data, size_t len) {
+        invariant(!"writingPtr should never be called on a BerkeleyRecoveryUnit");
     }
 
-    bool HeapRecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"nyi");
-    }
-
-    bool HeapRecoveryUnit::isCommitNeeded() const {
-        invariant(!"nyi");
-    }
-
-    void* HeapRecoveryUnit::writingPtr(void* data, size_t len) {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::syncDataAndTruncateJournal() {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::declareWriteIntent(const DiskLoc& loc, const OpType_t& ot,
-            HeapRecordStore& hrs) {
+    void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
         invariant(!"nyi");
     }
 

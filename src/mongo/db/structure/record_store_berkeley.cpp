@@ -31,6 +31,8 @@
 
 #include "mongo/db/structure/record_store_berkeley.h"
 
+#include <db_cxx.h>
+
 #include "mongo/db/storage/record.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
