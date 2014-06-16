@@ -156,7 +156,7 @@ namespace mongo {
         
         value.set_size(lengthWithHeaders);
         value.set_data(rec);
-        db.put(txn->getTransaction(), &key, &value, DB_NOOVERWRITE);
+        invariant(db.put(txn->getTransaction(), &key, &value, DB_NOOVERWRITE) == 0);
 
         _dataSize += len;
 
@@ -177,7 +177,36 @@ namespace mongo {
                                                       int len,
                                                       int quotaMax,
                                                       UpdateMoveNotifier* notifier ) {
-        invariant(!"nyi");
+        Dbt key, value;
+
+        key.set_data(&loc);
+        key.set_size(sizeof(DiskLoc));
+
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        Record* oldRecord = recordFor(oldLocation);
+
+        const int lengthWithHeaders = len + Record::HeaderSize;
+        boost::shared_array<char> buf(new char[lengthWithHeaders]);
+        Record* rec = reinterpret_cast<Record*>(buf.get());
+        rec->lengthWithHeaders() = lengthWithHeaders;
+        memcpy(rec->data(), data, len);
+
+        
+        value.set_size(lengthWithHeaders);
+        value.set_data(rec);
+        invariant(db.put(txn->getTransaction(), &key, &value, 0) == 0);
+
+        _dataSize += len - oldRecord->netLength();
+
+        cappedDeleteAsNeeded(txn);
+
+        return StatusWith<DiskLoc>(oldLocation);
     }
 
     Status BerkeleyRecordStore::updateWithDamages( OperationContext* txn,
