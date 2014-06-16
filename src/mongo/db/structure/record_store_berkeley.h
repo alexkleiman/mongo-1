@@ -50,7 +50,8 @@ namespace mongo {
                                  bool isCapped = false,
                                  int64_t cappedMaxSize = -1,
                                  int64_t cappedMaxDocs = -1,
-                                 CappedDocumentDeleteCallback* cappedDeleteCallback = NULL);
+                                 CappedDocumentDeleteCallback* cappedDeleteCallback = NULL,
+                                 DbEnv env);
 
         virtual const char* name() const;
 
@@ -143,10 +144,8 @@ namespace mongo {
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
         CappedDocumentDeleteCallback* const _cappedDeleteCallback;
-        int64_t _dataSize;
-
-        Records _records;
-        int64_t _nextId;
+        Db db;
+        
     };
 
     class BerkeleyRecordIterator : public RecordIterator {

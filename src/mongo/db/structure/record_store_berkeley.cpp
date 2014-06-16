@@ -45,7 +45,8 @@ namespace mongo {
                                      bool isCapped,
                                      int64_t cappedMaxSize,
                                      int64_t cappedMaxDocs,
-                                     CappedDocumentDeleteCallback* cappedDeleteCallback)
+                                     CappedDocumentDeleteCallback* cappedDeleteCallback,
+                                     DbEnv env)
             : RecordStore(ns),
               _isCapped(isCapped),
               _cappedMaxSize(cappedMaxSize),
@@ -62,6 +63,29 @@ namespace mongo {
             invariant(_cappedMaxSize == -1);
             invariant(_cappedMaxDocs == -1);
         }
+
+        // Open DB
+        try
+            {
+                db = new Db(env, 0);
+                db_.set_error_stream(error());
+
+                uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT);
+                // Open the database
+                db.open(NULL, ns.toString() + ".db", NULL, DB_BTREE, cFlags_, 0);
+            }
+            // DbException is not a subclass of std::exception, so we
+            // need to catch them both.
+            catch(DbException &e) 
+            {
+                error() << "Error opening database: " << ns.toString() << "\n";
+                error() << e.what() << std::endl;
+            }
+            catch(std::exception &e)
+            {
+                error() << "Error opening database: " << ns.toString() << "\n";
+                error() << e.what() << std::endl;
+            }
     }
 
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
