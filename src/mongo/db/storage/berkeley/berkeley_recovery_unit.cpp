@@ -57,15 +57,15 @@ namespace mongo {
     }
 
     bool BerkeleyRecoveryUnit::awaitCommit() {
-        invariant(!"nyi");
+        invariant(!"awaitCommit should never be called on a BerkeleyRecoveryUnit");
     }
 
     bool BerkeleyRecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"nyi");
+        invariant(!"commitIfNeeded should never be called on a BerkeleyRecoveryUnit");
     }
 
     bool BerkeleyRecoveryUnit::isCommitNeeded() const {
-        invariant(!"nyi");
+        invariant(!"isCommitNeeded should never be called on a BerkeleyRecoveryUnit");
     }
 
     void* BerkeleyRecoveryUnit::writingPtr(void* data, size_t len) {
@@ -73,8 +73,10 @@ namespace mongo {
     }
 
     void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
-        // TODO call txn_checkpoint
-        invariant(!"nyi");
+        invariant(_bdbTransaction != NULL);
+        txn->txn_checkpoint(0, 0, 0);
+
+        // TODO figure out what to do in case of error
     }
 
 } // namespace mongo
