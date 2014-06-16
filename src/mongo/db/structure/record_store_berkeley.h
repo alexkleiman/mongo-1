@@ -145,7 +145,7 @@ namespace mongo {
         const int64_t _cappedMaxDocs;
         CappedDocumentDeleteCallback* const _cappedDeleteCallback;
         Db db;
-        
+        boost::shared_array readBuffer;
     };
 
     class BerkeleyRecordIterator : public RecordIterator {
