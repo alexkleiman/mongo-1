@@ -32,6 +32,7 @@
 
 #include "mongo/base/init.h"
 #include "mongo/db/storage_options.h"
+#include "mongo/db/storage/berkeley1/berkeley1_engine.h"
 #include "mongo/db/storage/heap1/heap1_engine.h"
 #include "mongo/db/storage/mmap_v1/mmap_v1_engine.h"
 #include "mongo/util/log.h"
@@ -59,6 +60,10 @@ namespace mongo {
             globalStorageEngine = new RocksEngine( storageGlobalParams.dbpath );
         }
 #endif
+        else if (storageGlobalParams.engine == "berkeley1" ) {
+            globalStorageEngine = new Berkeley1Engine(storageGlobalParams.directoryperdb,
+                                                      storageGlobalParams.dbpath);
+        }
         else {
             log() << "unknown storage engine: " << storageGlobalParams.engine;
             return Status( ErrorCodes::BadValue, "unknown storage engine" );

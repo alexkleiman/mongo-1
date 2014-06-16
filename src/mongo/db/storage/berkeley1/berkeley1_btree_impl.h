@@ -26,52 +26,19 @@
  *    it in the license file.
  */
 
-#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
+#include <boost/shared_ptr.hpp>
 
-#include "mongo/db/storage/record.h"
+#include "mongo/db/structure/btree/btree_interface.h"
+
+#pragma once
 
 namespace mongo {
+    class IndexCatalogEntry;
 
-    HeapRecoveryUnit::HeapRecoveryUnit() {
-    }
+    /**
+     * Caller takes ownership.
+     * All permanent data will be stored and fetch from dataInOut.
+     */
+    BtreeInterface* getHeap1BtreeImpl(IndexCatalogEntry* info, boost::shared_ptr<void>* dataInOut);
 
-    void HeapRecoveryUnit::beginUnitOfWork() {
-        invariant(!"nyi");
-    }
-
-    // TODO figure out if this should be sure to do nothing if
-    // beginUnitOfWork() hasn't been called
-    void HeapRecoveryUnit::commitUnitOfWork() {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::endUnitOfWork() {
-        invariant(!"nyi");
-    }
-
-    bool HeapRecoveryUnit::awaitCommit() {
-        invariant(!"nyi");
-    }
-
-    bool HeapRecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"nyi");
-    }
-
-    bool HeapRecoveryUnit::isCommitNeeded() const {
-        invariant(!"nyi");
-    }
-
-    void* HeapRecoveryUnit::writingPtr(void* data, size_t len) {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::syncDataAndTruncateJournal() {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::declareWriteIntent(const DiskLoc& loc, const OpType_t& ot,
-            HeapRecordStore& hrs) {
-        invariant(!"nyi");
-    }
-
-} // namespace mongo
+}  // namespace mongo

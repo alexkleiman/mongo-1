@@ -31,9 +31,14 @@
 
 #include "mongo/db/structure/record_store_berkeley.h"
 
-#include "mongo/db/storage/record.h"
+#include <db_cxx.h>
+
 #include "mongo/db/operation_context.h"
-#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
+
+
+//TODO find maximum record length
+#define BUFFER_SIZE 16 * 1024000
 
 namespace mongo {
 
@@ -41,7 +46,8 @@ namespace mongo {
     // RecordStore
     //
 
-    BerkeleyRecordStore::BerkeleyRecordStore(const StringData& ns,
+    BerkeleyRecordStore::BerkeleyRecordStore(DbEnv& env,
+                                     const StringData& ns,
                                      bool isCapped,
                                      int64_t cappedMaxSize,
                                      int64_t cappedMaxDocs,
@@ -51,8 +57,8 @@ namespace mongo {
               _cappedMaxSize(cappedMaxSize),
               _cappedMaxDocs(cappedMaxDocs),
               _cappedDeleteCallback(cappedDeleteCallback),
-              _dataSize(0),
-              _nextId(1) { // DiskLoc(0,0) isn't valid for records.
+              db(&env, 0),
+              _env(env) { // DiskLoc(0,0) isn't valid for records.
 
         if (_isCapped) {
             invariant(_cappedMaxSize > 0);
@@ -62,17 +68,67 @@ namespace mongo {
             invariant(_cappedMaxSize == -1);
             invariant(_cappedMaxDocs == -1);
         }
+
+        // Open DB
+        try {
+              //TODO set error stream
+              //db.set_error_stream(error());
+
+              uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT | DB_READ_UNCOMMITTED);
+              // Open the database
+              std::string db_name = ns.toString() + ".db";
+              db.open(NULL, db_name.data(), NULL, DB_BTREE, cFlags_, 0);
+          }
+          // DbException is not a subclass of std::exception, so we
+          // need to catch them both.
+          catch(DbException &e) {
+              error() << "Error opening database: " << ns.toString() << "\n";
+              error() << e.what() << std::endl;
+          }
+          catch(std::exception &e) {
+              error() << "Error opening database: " << ns.toString() << "\n";
+              error() << e.what() << std::endl;
+          }
+        // Initialize Read Buffer
+        readBuffer = boost::shared_array<char>(new char[BUFFER_SIZE]);
+    }
+
+    BerkeleyRecordStore::~BerkeleyRecordStore() {
+        db.close(0);
     }
 
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
 
-    Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+
+    RecordData BerkeleyRecordStore::dataFor(const DiskLoc& loc) const {
+        Dbt value;
+
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+        
+        value.set_data(readBuffer.get());
+        value.set_flags(DB_DBT_USERMEM);
+        value.set_ulen(BUFFER_SIZE);
+
+        invariant(const_cast<Db&>(db).get(NULL, &key, &value, DB_READ_UNCOMMITTED) == 0);
+
+        int size = value.get_size();
+
+        char* data = new char[size];
+        memcpy(data, readBuffer.get(), size);
+
+        return RecordData(data, size, boost::shared_array<char>(data));
     }
 
-    void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
-        invariant(!"nyi");
-    }
+    void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc)  {
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+        //invariant(ru != NULL);
+
+        invariant(db.del(ru, &key, 0) == 0);    }
 
     bool BerkeleyRecordStore::cappedAndNeedDelete() const {
         invariant(!"nyi");
@@ -86,13 +142,63 @@ namespace mongo {
                                                       const char* data,
                                                       int len,
                                                       int quotaMax) {
-        invariant(!"nyi");
+        Dbt value;
+
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        const DiskLoc loc = allocateLoc(txn);
+        
+        value.set_size(len);
+        value.set_data(const_cast<char*>(data));
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+        //invariant(ru != NULL);
+
+        invariant(db.put(ru, &key, &value, DB_NOOVERWRITE) == 0);
+
+        return StatusWith<DiskLoc>(loc);
     }
 
     StatusWith<DiskLoc> BerkeleyRecordStore::insertRecord(OperationContext* txn,
                                                       const DocWriter* doc,
                                                       int quotaMax) {
-        invariant(!"nyi");
+        Dbt value;
+
+        const int len = doc->documentSize();
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        boost::shared_array<char> buf(new char[len]);
+        doc->writeDocument(buf.get());
+
+        value.set_size(len);
+        value.set_data(buf.get());
+
+        const DiskLoc loc = allocateLoc(txn);
+
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+        //invariant(ru != NULL);
+
+        invariant(db.put(ru, &key, &value, DB_NOOVERWRITE) == 0);
+
+        return StatusWith<DiskLoc>(loc);
     }
 
     StatusWith<DiskLoc> BerkeleyRecordStore::updateRecord(OperationContext* txn,
@@ -101,7 +207,28 @@ namespace mongo {
                                                       int len,
                                                       int quotaMax,
                                                       UpdateMoveNotifier* notifier ) {
-        invariant(!"nyi");
+        Dbt value;
+
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        value.set_size(len);
+        value.set_data(const_cast<char*>(data));
+        int64_t key_id = getLocID(oldLocation);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+
+        invariant(ru != NULL);         
+
+        invariant(db.put(ru, &key, &value, 0) == 0);
+
+        return StatusWith<DiskLoc>(oldLocation);
     }
 
     Status BerkeleyRecordStore::updateWithDamages( OperationContext* txn,
@@ -125,19 +252,25 @@ namespace mongo {
         invariant(!"nyi");
     }
 
+
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
-        invariant(!"nyi");
+        db.truncate(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), NULL, 0);
+
+        return Status::OK();
     }
 
     bool BerkeleyRecordStore::compactSupported() const {
-        invariant(!"nyi");
+        return true;
     }
     Status BerkeleyRecordStore::compact(OperationContext* txn,
                                     RecordStoreCompactAdaptor* adaptor,
                                     const CompactOptions* options,
                                     CompactStats* stats) {
-        // TODO might be possible to do something here
-        invariant(!"compact not yet implemented");
+        invariant(db.compact(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), NULL, NULL, NULL, 0, NULL) == 0);
+
+        return Status::OK();
     }
 
     Status BerkeleyRecordStore::validate(OperationContext* txn,
@@ -164,7 +297,6 @@ namespace mongo {
 
     void BerkeleyRecordStore::increaseStorageSize(OperationContext* txn,  int size, int quotaMax) {
         // unclear what this would mean for this class. For now, just no-op.
-        invariant(!"nyi");
     }
 
     int64_t BerkeleyRecordStore::storageSize(BSONObjBuilder* extraInfo, int infoLevel) const {
@@ -174,13 +306,70 @@ namespace mongo {
 
 
     bool BerkeleyRecordStore::hasRecordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+        
+        return (const_cast<Db&>(db).exists(NULL, &key, DB_READ_UNCOMMITTED) != DB_NOTFOUND);
     }
 
+    DiskLoc BerkeleyRecordStore::allocateLoc(OperationContext* txn) {
+        char id_key = 0;
+        int64_t id = 0, new_id = 0;
 
-    DiskLoc BerkeleyRecordStore::allocateLoc() {
-        invariant(!"nyi");
+        Dbt key(reinterpret_cast<char*>(&id_key), sizeof(char));
+        Dbt value(reinterpret_cast<char*>(&id), sizeof(int64_t));
+        value.set_flags(DB_DBT_USERMEM);
+        value.set_ulen(sizeof(int64_t));
+
+        DbTxn* transaction = NULL;
+        _env.txn_begin(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), &transaction, 0);
+        if (const_cast<Db&>(db).get(transaction, &key, &value, DB_READ_UNCOMMITTED) == DB_NOTFOUND) {
+          id = 0;
+        }
+
+        new_id = id + 1;
+        Dbt new_value(reinterpret_cast<char*>(&new_id), sizeof(int64_t));
+
+        invariant(db.put(transaction, &key, &new_value, 0) == 0);
+        transaction->commit(0);
+
+        // This is a hack, but both the high and low order bits of DiskLoc offset must be 0, and the
+        // file must fit in 23 bits. This gives us a total of 30 + 23 == 53 bits.
+        invariant(id < (1LL << 53));
+        return DiskLoc(int(id >> 30), int((id << 1) & ~(1<<31)));
     }
+
+    int64_t BerkeleyRecordStore::getLocID(const DiskLoc& loc) const {
+        return (((int64_t) loc.getOfs() << 32) + (int64_t) loc.a());
+    }
+
+    long long BerkeleyRecordStore::dataSize() const {
+        DB_BTREE_STAT* stat = NULL;
+        stat = (DB_BTREE_STAT*) malloc(sizeof(DB_BTREE_STAT));
+
+        invariant(const_cast<Db&>(db).stat(NULL, &stat, DB_READ_UNCOMMITTED) == 0);
+        long long num_records = (long long) stat->bt_nkeys;
+
+        // This is to account for the one record which is used to allocate the next location
+        if (num_records != 0)
+          num_records--;
+        return num_records * (long long)stat->bt_pagesize;
+    }
+
+    long long BerkeleyRecordStore::numRecords() const {
+        DB_BTREE_STAT* stat = NULL;
+        stat = (DB_BTREE_STAT*) malloc(sizeof(DB_BTREE_STAT));
+
+        invariant(const_cast<Db&>(db).stat(NULL, &stat, DB_READ_UNCOMMITTED) == 0);
+        long long num_records = (long long) stat->bt_nkeys;
+
+        // This is to account for the one record which is used to allocate the next location
+        if (num_records != 0)
+          num_records--;
+        return num_records;
+    }
+
 
     //
     // Forward Iterator
