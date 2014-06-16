@@ -1,3 +1,5 @@
+// berkeley_recovery_unit.cpp
+
 /**
  *    Copyright (C) 2014 MongoDB Inc.
  *
@@ -28,50 +30,59 @@
 
 #include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
 
+#include <db_cxx.h>
+
 #include "mongo/db/storage/record.h"
 
 namespace mongo {
 
-    HeapRecoveryUnit::HeapRecoveryUnit() {
+    void BerkeleyRecoveryUnit::beginUnitOfWork() {
+        invariant(_bdbTransaction == NULL);
+        _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
     }
 
-    void HeapRecoveryUnit::beginUnitOfWork() {
-        invariant(!"nyi");
+    void BerkeleyRecoveryUnit::commitUnitOfWork() {
+        invariant(_bdbTransaction != NULL);
+        _bdbTransaction->commit(_commitFlags);
+
+        // TODO figure out what to do in cases of error
+        
+        // start a new transaction so that further calls to commitUnitOfWork() succeed
+        _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
     }
 
-    // TODO figure out if this should be sure to do nothing if
-    // beginUnitOfWork() hasn't been called
-    void HeapRecoveryUnit::commitUnitOfWork() {
-        invariant(!"nyi");
+    void BerkeleyRecoveryUnit::endUnitOfWork() {
+        invariant(_bdbTransaction != NULL);
+        _bdbTransaction->abort();
+        _bdbTransaction = NULL;
+        // TODO figure out what to do in cases of error
     }
 
-    void HeapRecoveryUnit::endUnitOfWork() {
-        invariant(!"nyi");
+    bool BerkeleyRecoveryUnit::awaitCommit() {
+        invariant(!"awaitCommit should never be called on a BerkeleyRecoveryUnit");
     }
 
-    bool HeapRecoveryUnit::awaitCommit() {
-        invariant(!"nyi");
+    bool BerkeleyRecoveryUnit::commitIfNeeded(bool force) {
+        invariant(!"commitIfNeeded should never be called on a BerkeleyRecoveryUnit");
     }
 
-    bool HeapRecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"nyi");
+    bool BerkeleyRecoveryUnit::isCommitNeeded() const {
+        invariant(!"isCommitNeeded should never be called on a BerkeleyRecoveryUnit");
     }
 
-    bool HeapRecoveryUnit::isCommitNeeded() const {
-        invariant(!"nyi");
+    void* BerkeleyRecoveryUnit::writingPtr(void* data, size_t len) {
+        invariant(!"writingPtr should never be called on a BerkeleyRecoveryUnit");
     }
 
-    void* HeapRecoveryUnit::writingPtr(void* data, size_t len) {
-        invariant(!"nyi");
+    void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
+        invariant(_bdbTransaction != NULL);
+        _bdbEnv.txn_checkpoint(0, 0, 0);
+
+        // TODO figure out what to do in case of error
     }
 
-    void HeapRecoveryUnit::syncDataAndTruncateJournal() {
-        invariant(!"nyi");
-    }
-
-    void HeapRecoveryUnit::declareWriteIntent(const DiskLoc& loc, const OpType_t& ot,
-            HeapRecordStore& hrs) {
-        invariant(!"nyi");
+    DbTxn* BerkeleyRecoveryUnit::getCurrentTransaction() {
+        return _bdbTransaction;
     }
 
 } // namespace mongo
