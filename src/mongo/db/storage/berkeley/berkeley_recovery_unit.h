@@ -29,7 +29,7 @@
 #pragma once
 
 #include <string>
-#include <stack>
+#include <db_cxx.h>
 
 #include "mongo/db/diskloc.h"
 #include "mongo/db/storage/record.h"
@@ -40,14 +40,14 @@
 namespace mongo {
 
     /**
-     * A HeapRecoveryUnit ensures that data in a HeapRecordStore persists. All information stored
-     * in the HeapRecordStore must be mutated through this interface
+     * A BerkeleyRecoveryUnit ensures that data in a BerkeleyRecordStore persists. All information
+     *  stored in the BerkeleyRecordStore must be mutated through this interface
      */
     class BerkeleyRecoveryUnit : public RecoveryUnit {
-        MONGO_DISALLOW_COPYING(HeapRecoveryUnit);
+        MONGO_DISALLOW_COPYING(BerkeleyRecoveryUnit);
     public:
 
-        BerkeleyRecoveryUnit();
+        BerkeleyRecoveryUnit(DbEnv& bdbEnv): _bdbEnv(bdbEnv), _bdbTransaction(NULL) { }
 
         virtual ~BerkeleyRecoveryUnit() { }
 
@@ -63,16 +63,16 @@ namespace mongo {
          * Commits all "proper" changes made since the last call to beginUnitOfWork(),
          * so long as beginUnitOfWork() has been called more recently than endUnitOfWork().
          * A "proper" change is one that has been made via a call to
-         * HeapRecordStore::insertRecord(), HeapRecordStore::updateRecord or
-         * HeapRecordStore::deleteRecord().
+         * BerkeleyRecordStore::insertRecord(), BerkeleyRecordStore::updateRecord or
+         * BerkeleyRecordStore::deleteRecord().
          * */
         void commitUnitOfWork();
 
         /**
          * Rolls back all "proper" changes made since the last call to commitUnitOfWork()
          * A "proper" change is one that has been made via a call to
-         * HeapRecordStore::insertRecord(), HeapRecordStore::updateRecord or
-         * HeapRecordStore::deleteRecord().
+         * BerkeleyRecordStore::insertRecord(), BerkeleyRecordStore::updateRecord or
+         * BerkeleyRecordStore::deleteRecord().
          */
         void endUnitOfWork();
 
@@ -97,16 +97,17 @@ namespace mongo {
         virtual void* writingPtr(void* data, size_t len);
 
         /**
-         * Not applicable to the HeapRecoveryUnit class. Currently a no-op
+         * Not applicable to the BerkeleyRecoveryUnit class. Currently a no-op
          */
         virtual void syncDataAndTruncateJournal();
 
-        // functions not in RecoveryUnit interface:
+        virtual DbTxn* getCurrentTransaction();
 
-        /**
-         * Declare that a value will be set for the key loc
-         */
-        void declareWriteIntent(const DiskLoc& loc, const OpType& ot, HeapRecordStore* hrs);
+    private:
+        DbEnv& _bdbEnv;
+        DbTxn* _bdbTransaction;
+        static const int _transactionFlags = 0;
+        static const int _commitFlags = 0;
     };
 
 } // namespace mongo
