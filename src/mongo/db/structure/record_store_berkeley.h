@@ -32,6 +32,8 @@
 
 #include <boost/shared_array.hpp>
 #include <map>
+#include <string>
+#include <db_cxx.h>
 
 #include "mongo/db/structure/capped_callback.h"
 #include "mongo/db/structure/record_store.h"
@@ -46,14 +48,20 @@ namespace mongo {
      */
     class BerkeleyRecordStore : public RecordStore {
     public:
-        explicit BerkeleyRecordStore(const StringData& ns,
+        explicit BerkeleyRecordStore(DbEnv& env,
+                                 const StringData& ns,
                                  bool isCapped = false,
                                  int64_t cappedMaxSize = -1,
                                  int64_t cappedMaxDocs = -1,
                                  CappedDocumentDeleteCallback* cappedDeleteCallback = NULL);
 
+        virtual ~BerkeleyRecordStore();
+
         virtual const char* name() const;
 
+
+        /* Note: this function reads uncommitted changes in order to preserve current
+           expected behavior. Potentially change in the future */
         virtual Record* recordFor( const DiskLoc& loc ) const;
 
         virtual void deleteRecord( OperationContext* txn, const DiskLoc& dl );
@@ -112,9 +120,10 @@ namespace mongo {
 
         virtual int64_t storageSize(BSONObjBuilder* extraInfo = NULL, int infoLevel = 0) const;
 
-        virtual long long dataSize() const { return _dataSize; }
+        // Returns the total size of the data on disk. Equal to # of records * berkeley page size
+        virtual long long dataSize() const;
 
-        virtual long long numRecords() const { return _records.size(); }
+        virtual long long numRecords() const;
 
         //
         // Not in RecordStore interface
@@ -134,19 +143,20 @@ namespace mongo {
        
 
     private:
-        DiskLoc allocateLoc();
+        DiskLoc allocateLoc(OperationContext* txn);
         bool cappedAndNeedDelete() const;
         void cappedDeleteAsNeeded(OperationContext* txn);
+        int64_t getLocID(const DiskLoc& loc) const;
 
         // TODO figure out a proper solution to metadata
         const bool _isCapped;
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
-        CappedDocumentDeleteCallback* const _cappedDeleteCallback;
-        int64_t _dataSize;
 
-        Records _records;
-        int64_t _nextId;
+        CappedDocumentDeleteCallback* const _cappedDeleteCallback;
+        Db db;
+        DbEnv& _env;
+        boost::shared_array<char> readBuffer;
     };
 
     class BerkeleyRecordIterator : public RecordIterator {
@@ -180,9 +190,9 @@ namespace mongo {
         const BerkeleyRecordStore& _rs;
     };
 
-    class HeapRecordReverseIterator : public RecordIterator {
+    class BerkeleyRecordReverseIterator : public RecordIterator {
     public:
-        HeapRecordReverseIterator(const BerkeleyRecordStore::Records& records,
+        BerkeleyRecordReverseIterator(const BerkeleyRecordStore::Records& records,
                                   const BerkeleyRecordStore& rs,
                                   DiskLoc start = DiskLoc());
 
