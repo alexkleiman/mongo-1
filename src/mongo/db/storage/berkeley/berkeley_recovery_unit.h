@@ -46,8 +46,7 @@ namespace mongo {
         MONGO_DISALLOW_COPYING(BerkeleyRecoveryUnit);
     public:
 
-        virtual BerkeleyRecoveryUnit(DbEnv& bdbEnv): _bdbEnv(bdbEnv), _bdbTransaction(NULL),
-                _transactionFlags(0) { }
+        BerkeleyRecoveryUnit(DbEnv& bdbEnv): _bdbEnv(bdbEnv), _bdbTransaction(NULL) { }
 
         virtual ~BerkeleyRecoveryUnit() { }
 
@@ -103,8 +102,9 @@ namespace mongo {
 
     private:
         DbEnv& _bdbEnv;
-        const DbTxn* _bdbTransaction;
-        const int _transactionFlags;
+        DbTxn* _bdbTransaction;
+        static const int _transactionFlags = 0;
+        static const int _commitFlags = 0;
     };
 
 } // namespace mongo

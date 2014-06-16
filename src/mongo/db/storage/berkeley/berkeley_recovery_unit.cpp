@@ -41,7 +41,7 @@ namespace mongo {
 
     void BerkeleyRecoveryUnit::commitUnitOfWork() {
         invariant(_bdbTransaction != NULL);
-        _txn->commit();
+        _bdbTransaction->commit(_commitFlags);
 
         // TODO figure out what to do in cases of error
         
@@ -51,7 +51,7 @@ namespace mongo {
 
     void BerkeleyRecoveryUnit::endUnitOfWork() {
         invariant(_bdbTransaction != NULL);
-        _txn->abort();
+        _bdbTransaction->abort();
 
         // TODO figure out what to do in cases of error
     }
