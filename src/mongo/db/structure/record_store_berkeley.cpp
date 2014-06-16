@@ -65,37 +65,57 @@ namespace mongo {
         }
 
         // Open DB
-        try
-            {
-                db = new Db(env, 0);
-                db_.set_error_stream(error());
+        try {
+              db = new Db(env, 0);
+              db_.set_error_stream(error());
 
-                uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT);
-                // Open the database
-                db.open(NULL, ns.toString() + ".db", NULL, DB_BTREE, cFlags_, 0);
-            }
-            // DbException is not a subclass of std::exception, so we
-            // need to catch them both.
-            catch(DbException &e) 
-            {
-                error() << "Error opening database: " << ns.toString() << "\n";
-                error() << e.what() << std::endl;
-            }
-            catch(std::exception &e)
-            {
-                error() << "Error opening database: " << ns.toString() << "\n";
-                error() << e.what() << std::endl;
-            }
+              uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT);
+              // Open the database
+              db.open(NULL, ns.toString() + ".db", NULL, DB_BTREE, cFlags_, 0);
+          }
+          // DbException is not a subclass of std::exception, so we
+          // need to catch them both.
+          catch(DbException &e) {
+              error() << "Error opening database: " << ns.toString() << "\n";
+              error() << e.what() << std::endl;
+          }
+          catch(std::exception &e) {
+              error() << "Error opening database: " << ns.toString() << "\n";
+              error() << e.what() << std::endl;
+          }
+        // Initialize Read Buffer
+          //TODO find maximum record length
+        readBuffer = boost::shared_array<char>(new char[16 * 1024000]);
     }
 
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
 
     Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+        Dbt key, value;
+
+        key.setData(&loc);
+        key.set_size(sizeof(DiskLoc));
+
+        
+        value.set_data(readBuffer.get());
+        value.set_data(DB_DBT_USERMEM);
+
+        invariant(db.get(NULL, &key, &data, 0) == 0);
+
+        int size = reinterpret_cast<Record*>(readBuffer.get())->lengthWithHeaders();
+        boost::shared_array& rec(new char[size]);
+        memcpy(rec.get(), readBuffer.get(), size);
+
+        return reinterpret_cast<Record*>(rec.get());
     }
 
     void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
-        invariant(!"nyi");
+        Dbt key;
+
+        key.setData(&loc);
+        key.set_size(sizeof(DiskLoc));
+
+        db.del(txn->GetTransaction(), key);
     }
 
     bool BerkeleyRecordStore::cappedAndNeedDelete() const {
@@ -110,7 +130,32 @@ namespace mongo {
                                                       const char* data,
                                                       int len,
                                                       int quotaMax) {
-        invariant(!"nyi");
+        Dbt key, value;
+
+        key.setData(&loc);
+        key.set_size(sizeof(DiskLoc));
+
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        // TODO padding?
+        const int lengthWithHeaders = len + Record::HeaderSize;
+        boost::shared_array<char> buf(new char[lengthWithHeaders]);
+        Record* rec = reinterpret_cast<Record*>(buf.get());
+        rec->lengthWithHeaders() = lengthWithHeaders;
+        memcpy(rec->data(), data, len);
+
+        const DiskLoc loc = allocateLoc();
+        _records[loc] = buf;
+        _dataSize += len;
+
+        cappedDeleteAsNeeded(txn);
+
+        return StatusWith<DiskLoc>(loc);
     }
 
     StatusWith<DiskLoc> BerkeleyRecordStore::insertRecord(OperationContext* txn,
