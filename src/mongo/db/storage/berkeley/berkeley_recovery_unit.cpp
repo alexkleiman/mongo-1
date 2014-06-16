@@ -73,6 +73,7 @@ namespace mongo {
     }
 
     void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
+        // TODO call txn_checkpoint
         invariant(!"nyi");
     }
 
