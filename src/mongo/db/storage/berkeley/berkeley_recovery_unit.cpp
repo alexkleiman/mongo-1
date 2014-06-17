@@ -30,6 +30,8 @@
 
 #include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
 
+#include <db_cxx.h>
+
 #include "mongo/db/storage/record.h"
 
 namespace mongo {
