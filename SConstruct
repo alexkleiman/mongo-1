@@ -202,6 +202,7 @@ add_option( "static" , "fully static build" , 0 , False )
 add_option( "static-libstdc++" , "statically link libstdc++" , 0 , False )
 add_option( "lto", "enable link time optimizations (experimental, except with MSVC)" , 0 , True )
 add_option( "dynamic-windows", "dynamically link on Windows", 0, True)
+add_option( "berkeleyDB", "Link Berkeley DB", 0, False)
 
 # base compile flags
 add_option( "64" , "whether to force 64 bit" , 0 , True , "force64" )
@@ -760,6 +761,10 @@ elif windows:
     env.Append( EXTRALIBPATH=["#/../winpcap/Lib"] )
 
 env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
+
+if has_option ( "berkeleyDB" ):
+    env.Append ( LINKFLAGS=["-ldb_cxx"] )
+
 if nix:
 
     if has_option( "distcc" ):

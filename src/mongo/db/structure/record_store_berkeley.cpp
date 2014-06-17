@@ -282,9 +282,12 @@ namespace mongo {
         invariant(!"nyi");
     }
 
-
     DiskLoc BerkeleyRecordStore::allocateLoc() {
-        invariant(!"nyi");
+        const int64_t id = _nextId++;
+        // This is a hack, but both the high and low order bits of DiskLoc offset must be 0, and the
+        // file must fit in 23 bits. This gives us a total of 30 + 23 == 53 bits.
+        invariant(id < (1LL << 53));
+        return DiskLoc(int(id >> 30), int((id << 1) & ~(1<<31)));
     }
 
     //

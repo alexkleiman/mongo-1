@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <string>
 #include <db_cxx.h>
 
 #include "mongo/db/diskloc.h"
