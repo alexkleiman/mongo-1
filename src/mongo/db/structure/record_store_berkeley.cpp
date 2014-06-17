@@ -43,7 +43,7 @@ namespace mongo {
     // RecordStore
     //
 
-    BerkeleyRecordStore::BerkeleyRecordStore(DbEnv env,
+    BerkeleyRecordStore::BerkeleyRecordStore(DbEnv& env,
                                      const StringData& ns,
                                      bool isCapped,
                                      int64_t cappedMaxSize,
@@ -53,10 +53,11 @@ namespace mongo {
               _isCapped(isCapped),
               _cappedMaxSize(cappedMaxSize),
               _cappedMaxDocs(cappedMaxDocs),
-              _cappedDeleteCallback(cappedDeleteCallback),
               _dataSize(0),
               _nextId(1),
-              _numRecords(0) { // DiskLoc(0,0) isn't valid for records.
+              _numRecords(0),
+              _cappedDeleteCallback(cappedDeleteCallback),
+              db(&env, 0) { // DiskLoc(0,0) isn't valid for records.
 
         if (_isCapped) {
             invariant(_cappedMaxSize > 0);
@@ -69,12 +70,13 @@ namespace mongo {
 
         // Open DB
         try {
-              db = new Db(env, 0);
-              db_.set_error_stream(error());
+              //TODO set error stream
+              //db.set_error_stream(error());
 
               uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT);
               // Open the database
-              db.open(NULL, ns.toString() + ".db", NULL, DB_BTREE, cFlags_, 0);
+              std::string db_name = ns.toString() + ".db";
+              db.open(NULL, db_name.data(), NULL, DB_BTREE, cFlags_, 0);
           }
           // DbException is not a subclass of std::exception, so we
           // need to catch them both.
@@ -94,31 +96,33 @@ namespace mongo {
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
 
     Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {
-        Dbt key, value;
+        Dbt value;
 
-        key.set_data(&loc);
-        key.set_size(sizeof(DiskLoc));
-
+        int64_t key_id = getLocID(loc);
+        // TODO make sure this copies into the Dbt
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
         
         value.set_data(readBuffer.get());
-        value.set_data(DB_DBT_USERMEM);
+        value.set_flags(DB_DBT_USERMEM);
 
-        invariant(db.get(NULL, &key, &data, 0) == 0);
+        invariant(const_cast<Db&>(db).get(NULL, &key, &value, 0) == 0);
 
         int size = reinterpret_cast<Record*>(readBuffer.get())->lengthWithHeaders();
-        boost::shared_array& rec(new char[size]);
+
+        boost::shared_array<char> rec(new char[size]);
         memcpy(rec.get(), readBuffer.get(), size);
 
         return reinterpret_cast<Record*>(rec.get());
+        //TODO change!
     }
 
-    void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
-        Dbt key;
+    void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc)  {
+        int64_t key_id = getLocID(loc);
+        // TODO make sure this copies into the Dbt
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-        key.set_data(&loc);
-        key.set_size(sizeof(DiskLoc));
-
-        db.del(txn->GetTransaction(), key);
+        invariant(db.del(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), &key, 0) == 0);
     }
 
     bool BerkeleyRecordStore::cappedAndNeedDelete() const {
@@ -133,10 +137,7 @@ namespace mongo {
                                                       const char* data,
                                                       int len,
                                                       int quotaMax) {
-        Dbt key, value;
-
-        key.set_data(&loc);
-        key.set_size(sizeof(DiskLoc));
+        Dbt value;
 
         if (_isCapped && len > _cappedMaxSize) {
             // We use dataSize for capped rollover and we don't want to delete everything if we know
@@ -156,7 +157,13 @@ namespace mongo {
         
         value.set_size(lengthWithHeaders);
         value.set_data(rec);
-        invariant(db.put(txn->getTransaction(), &key, &value, DB_NOOVERWRITE) == 0);
+
+        int64_t key_id = getLocID(loc);
+        // TODO make sure this copies into the Dbt
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        invariant(db.put(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), &key, &value, DB_NOOVERWRITE) == 0);
 
         _dataSize += len;
 
@@ -177,10 +184,7 @@ namespace mongo {
                                                       int len,
                                                       int quotaMax,
                                                       UpdateMoveNotifier* notifier ) {
-        Dbt key, value;
-
-        key.set_data(&loc);
-        key.set_size(sizeof(DiskLoc));
+        Dbt value;
 
         if (_isCapped && len > _cappedMaxSize) {
             // We use dataSize for capped rollover and we don't want to delete everything if we know
@@ -200,7 +204,13 @@ namespace mongo {
         
         value.set_size(lengthWithHeaders);
         value.set_data(rec);
-        invariant(db.put(txn->getTransaction(), &key, &value, 0) == 0);
+
+        int64_t key_id = getLocID(oldLocation);
+        // TODO make sure this copies into the Dbt
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        invariant(db.put(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), &key, &value, 0) == 0);
 
         _dataSize += len - oldRecord->netLength();
 
@@ -289,6 +299,11 @@ namespace mongo {
         invariant(id < (1LL << 53));
         return DiskLoc(int(id >> 30), int((id << 1) & ~(1<<31)));
     }
+
+    int64_t BerkeleyRecordStore::getLocID(const DiskLoc& loc) const {
+        return (((int64_t) loc.getOfs() << 32) + (int64_t) loc.a());
+    }
+
 
     //
     // Forward Iterator

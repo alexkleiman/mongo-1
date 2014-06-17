@@ -81,4 +81,8 @@ namespace mongo {
         // TODO figure out what to do in case of error
     }
 
+    DbTxn* BerkeleyRecoveryUnit::getCurrentTransaction() {
+        return _bdbTransaction;
+    }
+
 } // namespace mongo

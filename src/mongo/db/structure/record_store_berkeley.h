@@ -140,13 +140,16 @@ namespace mongo {
         DiskLoc allocateLoc();
         bool cappedAndNeedDelete() const;
         void cappedDeleteAsNeeded(OperationContext* txn);
+        int64_t getLocID(const DiskLoc& loc) const;
 
         // TODO figure out a proper solution to metadata
         const bool _isCapped;
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
-        long long _numRecords;
         long long _dataSize;
+        int64_t _nextId;
+        long long _numRecords;
+
         CappedDocumentDeleteCallback* const _cappedDeleteCallback;
         Db db;
         boost::shared_array<char> readBuffer;
@@ -183,9 +186,9 @@ namespace mongo {
         const BerkeleyRecordStore& _rs;
     };
 
-    class HeapRecordReverseIterator : public RecordIterator {
+    class BerkeleyRecordReverseIterator : public RecordIterator {
     public:
-        HeapRecordReverseIterator(const BerkeleyRecordStore::Records& records,
+        BerkeleyRecordReverseIterator(const BerkeleyRecordStore::Records& records,
                                   const BerkeleyRecordStore& rs,
                                   DiskLoc start = DiskLoc());
 

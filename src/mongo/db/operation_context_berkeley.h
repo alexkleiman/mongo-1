@@ -32,6 +32,7 @@
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/operation_context_noop.h"
+#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
 #pragma once
 
 namespace mongo {
@@ -64,9 +65,8 @@ namespace mongo {
         DbEnv& getEnv() { return _environment; }
 
     private:
-        boost::scoped_ptr<RecoveryUnitNoop> _recoveryUnit;
-        DbEnv& _environment;
-        virtual DbEnv OpenEnv();
+        boost::scoped_ptr<BerkeleyRecoveryUnit> _recoveryUnit;
+        DbEnv _environment;
     };
 
 }  // namespace mongo

@@ -101,6 +101,8 @@ namespace mongo {
          */
         virtual void syncDataAndTruncateJournal();
 
+        virtual DbTxn* getCurrentTransaction();
+
     private:
         DbEnv& _bdbEnv;
         DbTxn* _bdbTransaction;

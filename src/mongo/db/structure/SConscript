@@ -74,6 +74,7 @@ env.CppUnitTest(
             ],
     LIBDEPS=[
         '$BUILD_DIR/mongo/db/storage/berkeley/berkeley_storage_engine',
+        '$BUILD_DIR/mongo/db/berkeley_operation_context',
         'record_store_berkeley'
         ]
     )

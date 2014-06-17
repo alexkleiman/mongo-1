@@ -26,72 +26,64 @@
  *    it in the license file.
  */
 
-#include "mongo/db/operation_context_impl.h"
-// Probably include Berkley header here
+#include "mongo/db/operation_context_berkeley.h"
 
 
 namespace mongo {
+    OperationContextBerkeley::OperationContextBerkeley(/* DbEnv env */) : 
+            _environment(0){
+        // Open the Environment, DB
+        uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
+                                            // exist, create it.
+                            DB_INIT_LOCK  | // Initialize locking
+                            DB_INIT_LOG   | // Initialize logging
+                            DB_INIT_MPOOL | // Initialize the cache
+                            DB_THREAD     | // Free-thread the env handle.
+                            DB_INIT_TXN);
+        _environment.open("berkeleyEnv/", cFlags_, 0);
 
-    class OperationContextBerkeley : public OperationContext {
-    public:
-        OperationContextBerkeley(/* DbEnv env */) _environment(OpenEnv()){
-            // Open the Environment, DB
-            _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
-        }
+        _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
+    }
 
-        virtual ~OperationContextBerkeley() {
+    OperationContextBerkeley::~OperationContextBerkeley() {
 
-        }
+    }
 
-        CurOp* getCurOp() const {
-            invariant(false);
-            return NULL;
-        }
-        virtual RecoveryUnit* recoveryUnit() const {
-            return _recoveryUnit.get();
-        }
+    CurOp* OperationContextBerkeley::getCurOp() const {
+        invariant(false);
+        return NULL;
+    }
+    RecoveryUnit* OperationContextBerkeley::recoveryUnit() const {
+        return _recoveryUnit.get();
+    }
 
-        virtual LockState* lockState() const {
-            // TODO: Eventually, this should return an actual LockState object. For now,
-            //       LockState depends on the whole world and is not necessary for testing.
-            return NULL;
-        }
+    LockState* OperationContextBerkeley::lockState() const {
+        // TODO: Eventually, this should return an actual LockState object. For now,
+        //       LockState depends on the whole world and is not necessary for testing.
+        return NULL;
+    }
 
-        virtual ProgressMeter* setMessage(const char * msg,
-                                          const std::string &name,
-                                          unsigned long long progressMeterTotal,
-                                          int secondsBetween) {
-            invariant(false);
-            return NULL;
-        }
+    ProgressMeter* OperationContextBerkeley::setMessage(const char * msg,
+                                      const std::string &name,
+                                      unsigned long long progressMeterTotal,
+                                      int secondsBetween) {
+        invariant(false);
+        return NULL;
+    }
 
-        virtual void checkForInterrupt(bool heedMutex = true) const { }
+    void OperationContextBerkeley::checkForInterrupt(bool heedMutex) const {
 
-        virtual Status checkForInterruptNoAssert() {
-            return Status::OK();
-        }
+    }
 
-        virtual bool isPrimaryFor( const StringData& ns ) {
-            return true;
-        }
+    Status OperationContextBerkeley::checkForInterruptNoAssert() const {
+        return Status::OK();
+    }
 
-        virtual const char * getNS() const {
-            return NULL;
-        }
+    bool OperationContextBerkeley::isPrimaryFor( const StringData& ns ) {
+        return true;
+    }
 
-        virtual Env OpenEnv() {
-            DbEnv env("berkeleyEnv/");
-            uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
-                                                // exist, create it.
-                                DB_INIT_LOCK  | // Initialize locking
-                                DB_INIT_LOG   | // Initialize logging
-                                DB_INIT_MPOOL | // Initialize the cache
-                                DB_THREAD     | // Free-thread the env handle.
-                                DB_INIT_TXN);
-            env.open(envHome_.c_str(), cFlags_, 0);
-
-            return env;
-        }
-    };
-
+    const char * OperationContextBerkeley::getNS() const {
+        return NULL;
+    }
 }  // namespace mongo
