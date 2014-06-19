@@ -57,6 +57,9 @@ namespace mongo {
 
         virtual const char* name() const;
 
+
+        /* Note: this function reads uncommitted changes in order to preserve current
+           expected behavior. Potentially change in the future */
         virtual Record* recordFor( const DiskLoc& loc ) const;
 
         virtual void deleteRecord( OperationContext* txn, const DiskLoc& dl );
@@ -115,9 +118,10 @@ namespace mongo {
 
         virtual int64_t storageSize(BSONObjBuilder* extraInfo = NULL, int infoLevel = 0) const;
 
-        virtual long long dataSize() const { return _dataSize; }
+        // Returns the total size of the data on disk. Equal to # of records * berkeley page size
+        virtual long long dataSize() const;
 
-        virtual long long numRecords() const { return _numRecords; }
+        virtual long long numRecords() const;
 
         //
         // Not in RecordStore interface
@@ -137,7 +141,7 @@ namespace mongo {
        
 
     private:
-        DiskLoc allocateLoc();
+        DiskLoc allocateLoc(OperationContext* txn);
         bool cappedAndNeedDelete() const;
         void cappedDeleteAsNeeded(OperationContext* txn);
         int64_t getLocID(const DiskLoc& loc) const;
@@ -146,12 +150,10 @@ namespace mongo {
         const bool _isCapped;
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
-        long long _dataSize;
-        int64_t _nextId;
-        long long _numRecords;
 
         CappedDocumentDeleteCallback* const _cappedDeleteCallback;
         Db db;
+        DbEnv& _env;
         boost::shared_array<char> readBuffer;
     };
 

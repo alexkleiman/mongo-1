@@ -54,7 +54,7 @@ namespace mongo {
     void BerkeleyRecoveryUnit::endUnitOfWork() {
         invariant(_bdbTransaction != NULL);
         _bdbTransaction->abort();
-
+        _bdbTransaction = NULL;
         // TODO figure out what to do in cases of error
     }
 

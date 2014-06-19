@@ -40,7 +40,9 @@ namespace mongo {
                             DB_INIT_MPOOL | // Initialize the cache
                             DB_THREAD     | // Free-thread the env handle.
                             DB_INIT_TXN);
-        _environment.open("berkeleyEnv/", cFlags_, 0);
+
+        //TODO change this to make a directory 
+        _environment.open("berkeleyEnv", cFlags_, 0);
 
         _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
     }

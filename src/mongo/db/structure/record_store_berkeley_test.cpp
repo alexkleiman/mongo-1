@@ -45,22 +45,26 @@ namespace {
 
     TEST(BerkeleyRecordStore, FullSimpleInsert1) {
         OperationContextBerkeley txn;
-        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
-
+        BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest", false, -1, -1, NULL);
+        
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
             StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-
             ASSERT_TRUE(result.isOK());
             Record* record = rs.recordFor(result.getValue());
             ASSERT_EQUALS(string("abc"), string(record->data()));
         }
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
+
+
 
     TEST(BerkeleyRecordStore, FullSimpleDelete1) {
         OperationContextBerkeley txn;
         BerkeleyRecordStore rs(txn.getEnv(), "berkeleytest.foo", false, -1, -1, NULL);
-
+        ASSERT_EQUALS(rs.numRecords(), 0);
         {
             WriteUnitOfWork wu(txn.recoveryUnit());
 
@@ -68,14 +72,16 @@ namespace {
             ASSERT_TRUE(result.isOK());
             Record* record = rs.recordFor(result.getValue());
             ASSERT_EQUALS(string("abc"), string(record->data()));
-            ASSERT_EQUALS(rs.dataSize(), record->netLength());
             ASSERT_EQUALS(rs.numRecords(), 1);
 
             rs.deleteRecord(&txn, result.getValue());
             ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
-            ASSERT_EQUALS(rs.dataSize(), 0);
             ASSERT_EQUALS(rs.numRecords(), 0);
+            ASSERT_EQUALS(rs.dataSize(), 0);
         }
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, UpdateSmaller1) {
@@ -94,6 +100,9 @@ namespace {
             Record* record2 = rs.recordFor(result2.getValue());
             ASSERT_EQUALS(string("a"), string(record2->data()));
         }
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, UpdateLarger1) {
@@ -114,6 +123,9 @@ namespace {
             Record* record2 = rs.recordFor(result2.getValue());
             ASSERT_EQUALS(string("abcdef"), string(record2->data()));
         }
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, MultipleUpdateLarge) {
@@ -153,6 +165,9 @@ namespace {
             Record* record3 = rs.recordFor(result3.getValue());
             ASSERT_EQUALS(large_data, string(record3->data()));
         }
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleInsertion) {
@@ -168,13 +183,15 @@ namespace {
             result = rs.insertRecord(&txn, "abc", 4, 1000);
             record = rs.recordFor(result.getValue());
             ASSERT_EQUALS(string("abc"), string(record->data()));
-            ASSERT_EQUALS(rs.dataSize(), record->netLength());
             ASSERT_EQUALS(rs.numRecords(), 1);
         } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
-        ASSERT_EQUALS(rs.dataSize(), 0);
         ASSERT_EQUALS(rs.numRecords(), 0);
+        ASSERT_EQUALS(rs.dataSize(), 0);
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleInsertion) {
@@ -190,7 +207,6 @@ namespace {
             result = rs.insertRecord(&txn, "abc", 4, 1000);
             record = rs.recordFor(result.getValue());
             ASSERT_EQUALS(string("abc"), string(record->data()));
-            ASSERT_EQUALS(rs.dataSize(), record->netLength());
             ASSERT_EQUALS(rs.numRecords(), 1);
 
             wu.commit();
@@ -198,8 +214,10 @@ namespace {
 
         Record* newRecord = rs.recordFor(result.getValue());
         ASSERT_EQUALS(string("abc"), string(newRecord->data()));
-        ASSERT_EQUALS(rs.dataSize(), newRecord->netLength());
         ASSERT_EQUALS(rs.numRecords(), 1);
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleDeletion) {
@@ -223,11 +241,14 @@ namespace {
 
         } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
-        ASSERT_TRUE(rs.hasRecordFor(result.getValue()));
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
-        ASSERT_EQUALS(rs.dataSize(), record->netLength());
         ASSERT_EQUALS(rs.numRecords(), 1);
+        Record* record = rs.recordFor(result.getValue());
+        ASSERT_TRUE(rs.hasRecordFor(result.getValue()));
+        ASSERT_EQUALS(string("abc"), string(record->data()));
+        
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleDeletion) {
@@ -250,6 +271,9 @@ namespace {
         ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
         ASSERT_EQUALS(rs.dataSize(), 0);
         ASSERT_EQUALS(rs.numRecords(), 0);
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleUpdate) {
@@ -279,6 +303,9 @@ namespace {
         ASSERT_EQUALS(rs.numRecords(), 1);
         ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                 || !rs.hasRecordFor(updateResult.getValue()));
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleUpdate) {
@@ -309,6 +336,9 @@ namespace {
         ASSERT_EQUALS(string("def"), string(updatedRecord->data()));
         ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                 || !rs.hasRecordFor(insertResult.getValue()));
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, MultiCommitsMixed) {
@@ -387,8 +417,9 @@ namespace {
         ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
 
         ASSERT_EQUALS(rs.numRecords(), 2);
-        ASSERT_EQUALS(rs.dataSize(),
-                firstUpdatedRecord->netLength() + secondUpdatedRecord->netLength());
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, MultiRollbacksMixed) {
@@ -473,8 +504,6 @@ namespace {
             ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
 
             ASSERT_EQUALS(rs.numRecords(), 2);
-            ASSERT_EQUALS(rs.dataSize(),
-                    firstUpdatedRecord->netLength() + secondUpdatedRecord->netLength());
 
         } // calls secondWu's destructor, equivalent to saying secondWu._ru->endUnitOfWork();
 
@@ -488,8 +517,9 @@ namespace {
         ASSERT_EQUALS(string("123"), string(secondNewRecord->data()));
         ASSERT_EQUALS(string("xyz"), string(thirdNewRecord->data()));
         ASSERT_EQUALS(rs.numRecords(), 3);
-        ASSERT_EQUALS(rs.dataSize(), firstNewRecord->netLength() + secondNewRecord->netLength()
-                                    + thirdNewRecord->netLength());
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
 
     TEST(BerkeleyRecordStore, MultipleRecordStores) {
@@ -521,6 +551,10 @@ namespace {
         ASSERT_EQUALS(firstRs.numRecords(), 0);
         ASSERT_EQUALS(secondRs.numRecords(), 0);
         ASSERT_EQUALS(thirdRs.numRecords(), 0);
+
+        txn.getEnv().close(0);
+        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
     }
+
 
 } // namespace
