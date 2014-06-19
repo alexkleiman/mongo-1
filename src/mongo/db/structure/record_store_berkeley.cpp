@@ -37,6 +37,8 @@
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
 
+
+//TODO find maximum record length
 #define BUFFER_SIZE 16 * 1024000
 
 namespace mongo {
@@ -73,8 +75,6 @@ namespace mongo {
               //TODO set error stream
               //db.set_error_stream(error());
 
-
-
               uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT | DB_READ_UNCOMMITTED);
               // Open the database
               std::string db_name = ns.toString() + ".db";
@@ -91,7 +91,6 @@ namespace mongo {
               error() << e.what() << std::endl;
           }
         // Initialize Read Buffer
-          //TODO find maximum record length
         readBuffer = boost::shared_array<char>(new char[BUFFER_SIZE]);
     }
 
@@ -208,7 +207,6 @@ namespace mongo {
         value.set_data(rec);
 
         int64_t key_id = getLocID(oldLocation);
-        // TODO make sure this copies into the Dbt
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
         invariant(db.put(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
@@ -240,18 +238,19 @@ namespace mongo {
     }
 
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
-        invariant(!"nyi");
+        db.truncate(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), NULL, 0);
     }
 
     bool BerkeleyRecordStore::compactSupported() const {
-        invariant(!"nyi");
+        return true;
     }
     Status BerkeleyRecordStore::compact(OperationContext* txn,
                                     RecordStoreCompactAdaptor* adaptor,
                                     const CompactOptions* options,
                                     CompactStats* stats) {
-        // TODO might be possible to do something here
-        invariant(!"compact not yet implemented");
+        invariant(db.compact(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction(), NULL, NULL, NULL, NULL) == 0);
     }
 
     Status BerkeleyRecordStore::validate(OperationContext* txn,
@@ -278,7 +277,6 @@ namespace mongo {
 
     void BerkeleyRecordStore::increaseStorageSize(OperationContext* txn,  int size, int quotaMax) {
         // unclear what this would mean for this class. For now, just no-op.
-        invariant(!"nyi");
     }
 
     int64_t BerkeleyRecordStore::storageSize(BSONObjBuilder* extraInfo, int infoLevel) const {
@@ -294,7 +292,6 @@ namespace mongo {
         return (const_cast<Db&>(db).exists(NULL, &key, DB_READ_UNCOMMITTED) != DB_NOTFOUND);
     }
 
-    //TODO change this to be persistent
     DiskLoc BerkeleyRecordStore::allocateLoc(OperationContext* txn) {
         char id_key = 0;
         int64_t id = 0, new_id = 0;
@@ -304,7 +301,6 @@ namespace mongo {
         value.set_flags(DB_DBT_USERMEM);
         value.set_ulen(sizeof(int64_t));
 
-        // TODO enclose this in a transaction?
         DbTxn* transaction = NULL;
         _env.txn_begin(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), &transaction, 0);

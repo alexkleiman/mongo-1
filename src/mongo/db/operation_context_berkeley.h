@@ -27,6 +27,7 @@
  */
 
 #include <boost/scoped_ptr.hpp>
+#include <boost/filesystem.hpp>
 #include <db_cxx.h>
 #include <string>
 

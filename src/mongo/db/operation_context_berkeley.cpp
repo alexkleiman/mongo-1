@@ -41,7 +41,9 @@ namespace mongo {
                             DB_THREAD     | // Free-thread the env handle.
                             DB_INIT_TXN);
 
-        //TODO change this to make a directory 
+        //TODO change this to to be somewhere else probably
+        boost::filesystem::path dir("berkeleyEnv");
+        boost::filesystem::create_directory(dir);
         _environment.open("berkeleyEnv", cFlags_, 0);
 
         _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
