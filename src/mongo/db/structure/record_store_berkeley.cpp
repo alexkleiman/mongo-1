@@ -95,6 +95,10 @@ namespace mongo {
         readBuffer = boost::shared_array<char>(new char[BUFFER_SIZE]);
     }
 
+    BerkeleyRecordStore::~BerkeleyRecordStore() {
+        db.close(0);
+    }
+
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
 
     Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {

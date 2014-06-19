@@ -48,7 +48,7 @@ namespace mongo {
     }
 
     OperationContextBerkeley::~OperationContextBerkeley() {
-
+        _environment.close(0);
     }
 
     CurOp* OperationContextBerkeley::getCurOp() const {

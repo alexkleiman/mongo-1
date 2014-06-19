@@ -55,6 +55,8 @@ namespace mongo {
                                  int64_t cappedMaxDocs = -1,
                                  CappedDocumentDeleteCallback* cappedDeleteCallback = NULL);
 
+        virtual ~BerkeleyRecordStore();
+
         virtual const char* name() const;
 
 
