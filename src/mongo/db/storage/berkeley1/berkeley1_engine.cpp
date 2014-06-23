@@ -97,10 +97,48 @@ namespace mongo {
                                                 //storageGlobalParams.directoryperdb);
     }
 
+    bool Berkeley1Engine::openDB(Db& db, const string& name) {
+
+        static uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT | DB_READ_UNCOMMITTED);
+
+        try {
+            db.open(NULL, name.data(), NULL, DB_BTREE, cFlags_, 0);
+        } catch(DbException &e) {
+            error() << "Error opening database: " << name << "\n";
+            error() << e.what() << std::endl;
+            return false;
+        } catch(std::exception &e) {
+            error() << "Error opening database: " << name << "\n";
+            error() << e.what() << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
     int Berkeley1Engine::flushAllFiles(bool sync) {
-        // TODO what type of flush is this?
-        invariant(!"not yet implemented");
-        return -1;
+        vector<std::string> databases;
+
+        // get the names of all the databases
+        listDatabases(&databases);
+
+        int numFlushed = 0;
+
+        for (vector<string>::iterator it; it != databases.end(); ++it) {
+            string fullPath = storageGlobalParams.dbpath + *it + ".db";
+            Db db(&_environment, 0);
+
+            // open the database, worry about exceptions in the helper method
+            if (!openDB(db, *it)){
+                continue;
+            }
+
+            db.sync(0);
+            ++numFlushed;
+            db.close(0);
+        }
+
+        return numFlushed;
     }
 
     Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
