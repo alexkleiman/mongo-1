@@ -3,9 +3,10 @@
 Import("env")
 
 env.Library(
-    target= 'berkeley_storage_engine',
+    target= 'storage_berkeley1',
     source= [
-        'berkeley_recovery_unit.cpp',
+        'berkeley1_engine.cpp',
+        'berkeley1_recovery_unit.cpp',
         ],
     LIBDEPS= [
         '$BUILD_DIR/mongo/bson'

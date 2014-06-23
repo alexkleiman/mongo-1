@@ -43,13 +43,13 @@ namespace mongo {
      * A BerkeleyRecoveryUnit ensures that data in a BerkeleyRecordStore persists. All information
      *  stored in the BerkeleyRecordStore must be mutated through this interface
      */
-    class BerkeleyRecoveryUnit : public RecoveryUnit {
-        MONGO_DISALLOW_COPYING(BerkeleyRecoveryUnit);
+    class Berkeley1RecoveryUnit : public RecoveryUnit {
+        MONGO_DISALLOW_COPYING(Berkeley1RecoveryUnit);
     public:
 
-        BerkeleyRecoveryUnit(DbEnv& bdbEnv): _bdbEnv(bdbEnv), _bdbTransaction(NULL) { }
+        Berkeley1RecoveryUnit(DbEnv& bdbEnv): _bdbEnv(bdbEnv), _bdbTransaction(NULL) { }
 
-        virtual ~BerkeleyRecoveryUnit() { }
+        virtual ~Berkeley1RecoveryUnit() { }
 
         /**
          * Begins a unit of work, enabling any changes to the record
