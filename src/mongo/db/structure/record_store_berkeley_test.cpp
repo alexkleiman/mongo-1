@@ -53,8 +53,8 @@ namespace {
                 WriteUnitOfWork wu(txn.recoveryUnit());
                 StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
             }
         }
 
@@ -76,8 +76,8 @@ namespace {
 
                 StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
                 ASSERT_EQUALS(rs.numRecords(), 1);
 
                 rs.deleteRecord(&txn, result.getValue());
@@ -102,13 +102,13 @@ namespace {
                 WriteUnitOfWork wu(txn.recoveryUnit());
                 StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
 
                 StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 1000, NULL);
                 ASSERT_TRUE(result2.isOK());
-                Record* record2 = rs.recordFor(result2.getValue());
-                ASSERT_EQUALS(string("a"), string(record2->data()));
+                RecordData record2 = rs.dataFor(result2.getValue());
+                ASSERT_EQUALS(string("a"), string(record2.data()));
             }
         }
 
@@ -128,14 +128,14 @@ namespace {
     
                 StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
     
                 StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(),
                         "abcdef", 7, 1000, NULL);
                 ASSERT_TRUE(result2.isOK());
-                Record* record2 = rs.recordFor(result2.getValue());
-                ASSERT_EQUALS(string("abcdef"), string(record2->data()));
+                RecordData record2 = rs.dataFor(result2.getValue());
+                ASSERT_EQUALS(string("abcdef"), string(record2.data()));
             }
         }
 
@@ -168,20 +168,20 @@ namespace {
                 StatusWith<DiskLoc> result = rs.insertRecord(&txn, original_data,
                         original_data_length + 1, 1000);
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(original_data, string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(original_data, string(record.data()));
 
                 StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 
                     1000, NULL);
                 ASSERT_TRUE(result2.isOK());
-                Record* record2 = rs.recordFor(result2.getValue());
-                ASSERT_EQUALS(string("a"), string(record2->data()));
+                RecordData record2 = rs.dataFor(result2.getValue());
+                ASSERT_EQUALS(string("a"), string(record2.data()));
 
                 StatusWith<DiskLoc> result3 = rs.updateRecord(&txn, result.getValue(), large_data,
                         large_data_length + 1, 1000, NULL);
                 ASSERT_TRUE(result3.isOK());
-                Record* record3 = rs.recordFor(result3.getValue());
-                ASSERT_EQUALS(large_data, string(record3->data()));
+                RecordData record3 = rs.dataFor(result3.getValue());
+                ASSERT_EQUALS(large_data, string(record3.data()));
             }
         }
 
@@ -197,14 +197,13 @@ namespace {
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
-            Record* record;
 
             {
                 WriteUnitOfWork wu(txn.recoveryUnit());
 
                 result = rs.insertRecord(&txn, "abc", 4, 1000);
-                record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
                 ASSERT_EQUALS(rs.numRecords(), 1);
             } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
@@ -225,21 +224,20 @@ namespace {
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
-            Record* record;
 
             {
                 WriteUnitOfWork wu(txn.recoveryUnit());
 
                 result = rs.insertRecord(&txn, "abc", 4, 1000);
-                record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
                 ASSERT_EQUALS(rs.numRecords(), 1);
 
                 wu.commit();
             } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
-            Record* newRecord = rs.recordFor(result.getValue());
-            ASSERT_EQUALS(string("abc"), string(newRecord->data()));
+            RecordData newRecord = rs.dataFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(newRecord.data()));
             ASSERT_EQUALS(rs.numRecords(), 1);
         }
 
@@ -272,9 +270,9 @@ namespace {
             } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
             ASSERT_EQUALS(rs.numRecords(), 1);
-            Record* record = rs.recordFor(result.getValue());
+            RecordData record = rs.dataFor(result.getValue());
             ASSERT_TRUE(rs.hasRecordFor(result.getValue()));
-            ASSERT_EQUALS(string("abc"), string(record->data()));
+            ASSERT_EQUALS(string("abc"), string(record.data()));
         }
 
         // Maybe make this cleanup cleaner in the future
@@ -330,13 +328,13 @@ namespace {
                 updateResult = rs.updateRecord(&txn, insertResult.getValue(), "def", 4, 1000, NULL);
 
                 ASSERT_TRUE(updateResult.isOK());
-                Record* record = rs.recordFor(updateResult.getValue());
-                ASSERT_EQUALS(string("def"), string(record->data()));
+                RecordData record = rs.dataFor(updateResult.getValue());
+                ASSERT_EQUALS(string("def"), string(record.data()));
 
             } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
-            Record* newRecord = rs.recordFor(insertResult.getValue());
-            ASSERT_EQUALS(string("abc"), string(newRecord->data()));
+            RecordData newRecord = rs.dataFor(insertResult.getValue());
+            ASSERT_EQUALS(string("abc"), string(newRecord.data()));
             ASSERT_EQUALS(rs.numRecords(), 1);
             ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                     || !rs.hasRecordFor(updateResult.getValue()));
@@ -366,15 +364,15 @@ namespace {
                 updateResult = rs.updateRecord(&txn, insertResult.getValue(), "def", 4, 1000, NULL);
 
                 ASSERT_TRUE(updateResult.isOK());
-                Record* record = rs.recordFor(updateResult.getValue());
-                ASSERT_EQUALS(string("def"), string(record->data()));
+                RecordData record = rs.dataFor(updateResult.getValue());
+                ASSERT_EQUALS(string("def"), string(record.data()));
 
                 wu.commit();
             } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
             // make sure that the update persisted
-            Record* updatedRecord = rs.recordFor(updateResult.getValue());
-            ASSERT_EQUALS(string("def"), string(updatedRecord->data()));
+            RecordData updatedRecord = rs.dataFor(updateResult.getValue());
+            ASSERT_EQUALS(string("def"), string(updatedRecord.data()));
             ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                     || !rs.hasRecordFor(insertResult.getValue()));
         }
@@ -393,7 +391,6 @@ namespace {
             StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
             StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
             StatusWith<DiskLoc> thirdInsertResult = dummyStatusWith;
-            Record* record;
             StatusWith<DiskLoc> fourthInsertResult = dummyStatusWith;
             StatusWith<DiskLoc> firstUpdateResult = dummyStatusWith;
             StatusWith<DiskLoc> secondUpdateResult = dummyStatusWith;
@@ -424,8 +421,8 @@ namespace {
                 ASSERT_FALSE(rs.hasRecordFor(firstInsertResult.getValue()));
                 ASSERT_FALSE(rs.hasRecordFor(thirdInsertResult.getValue()));
                 ASSERT_TRUE(rs.hasRecordFor(secondInsertResult.getValue()));
-                record = rs.recordFor(secondInsertResult.getValue());
-                ASSERT_EQUALS(string("123"), string(record->data()));
+                RecordData record = rs.dataFor(secondInsertResult.getValue());
+                ASSERT_EQUALS(string("123"), string(record.data()));
 
                 // insert a fourth record
                 fourthInsertResult = rs.insertRecord(&txn, "789", 4, 1000);
@@ -455,11 +452,11 @@ namespace {
             ASSERT_TRUE(firstUpdateResult.isOK());
             ASSERT_TRUE(secondUpdateResult.isOK());
 
-            Record* firstUpdatedRecord = rs.recordFor(firstUpdateResult.getValue());
-            Record* secondUpdatedRecord = rs.recordFor(secondUpdateResult.getValue());
+            RecordData firstUpdatedRecord = rs.dataFor(firstUpdateResult.getValue());
+            RecordData secondUpdatedRecord = rs.dataFor(secondUpdateResult.getValue());
 
-            ASSERT_EQUALS(string("321"), string(firstUpdatedRecord->data()));
-            ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
+            ASSERT_EQUALS(string("321"), string(firstUpdatedRecord.data()));
+            ASSERT_EQUALS(string("987"), string(secondUpdatedRecord.data()));
 
             ASSERT_EQUALS(rs.numRecords(), 2);
         }
@@ -506,12 +503,12 @@ namespace {
             ASSERT_TRUE(rs.hasRecordFor(thirdInsertResult.getValue()));
             ASSERT_TRUE(rs.hasRecordFor(thirdInsertResult.getValue()));
 
-            Record* firstRecord = rs.recordFor(firstInsertResult.getValue());
-            Record* secondRecord = rs.recordFor(secondInsertResult.getValue());
-            Record* thirdRecord = rs.recordFor(thirdInsertResult.getValue());
-            ASSERT_EQUALS(string("abc"), string(firstRecord->data()));
-            ASSERT_EQUALS(string("123"), string(secondRecord->data()));
-            ASSERT_EQUALS(string("xyz"), string(thirdRecord->data()));
+            RecordData firstRecord = rs.dataFor(firstInsertResult.getValue());
+            RecordData secondRecord = rs.dataFor(secondInsertResult.getValue());
+            RecordData thirdRecord = rs.dataFor(thirdInsertResult.getValue());
+            ASSERT_EQUALS(string("abc"), string(firstRecord.data()));
+            ASSERT_EQUALS(string("123"), string(secondRecord.data()));
+            ASSERT_EQUALS(string("xyz"), string(thirdRecord.data()));
 
             // insert a fourth record, delete the first and third record, update the remaining two,
             // and roll it all back
@@ -546,25 +543,25 @@ namespace {
                 ASSERT_TRUE(firstUpdateResult.isOK());
                 ASSERT_TRUE(secondUpdateResult.isOK());
 
-                Record* firstUpdatedRecord = rs.recordFor(firstUpdateResult.getValue());
-                Record* secondUpdatedRecord = rs.recordFor(secondUpdateResult.getValue());
+                RecordData firstUpdatedRecord = rs.dataFor(firstUpdateResult.getValue());
+                RecordData secondUpdatedRecord = rs.dataFor(secondUpdateResult.getValue());
 
-                ASSERT_EQUALS(string("321"), string(firstUpdatedRecord->data()));
-                ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
+                ASSERT_EQUALS(string("321"), string(firstUpdatedRecord.data()));
+                ASSERT_EQUALS(string("987"), string(secondUpdatedRecord.data()));
 
                 ASSERT_EQUALS(rs.numRecords(), 2);
 
             } // calls secondWu's destructor, equivalent to saying secondWu._ru->endUnitOfWork();
 
             // make sure everything was rolled back properly
-            Record* firstNewRecord = rs.recordFor(firstInsertResult.getValue());
-            Record* secondNewRecord = rs.recordFor(secondInsertResult.getValue());
-            Record* thirdNewRecord = rs.recordFor(thirdInsertResult.getValue());
+            RecordData firstNewRecord = rs.dataFor(firstInsertResult.getValue());
+            RecordData secondNewRecord = rs.dataFor(secondInsertResult.getValue());
+            RecordData thirdNewRecord = rs.dataFor(thirdInsertResult.getValue());
             ASSERT_FALSE(rs.hasRecordFor(fourthInsertResult.getValue()));
 
-            ASSERT_EQUALS(string("abc"), string(firstNewRecord->data()));
-            ASSERT_EQUALS(string("123"), string(secondNewRecord->data()));
-            ASSERT_EQUALS(string("xyz"), string(thirdNewRecord->data()));
+            ASSERT_EQUALS(string("abc"), string(firstNewRecord.data()));
+            ASSERT_EQUALS(string("123"), string(secondNewRecord.data()));
+            ASSERT_EQUALS(string("xyz"), string(thirdNewRecord.data()));
             ASSERT_EQUALS(rs.numRecords(), 3);
         }
 
@@ -625,8 +622,8 @@ namespace {
                 loc = new DiskLoc(result.getValue());
 
                 ASSERT_TRUE(result.isOK());
-                Record* record = rs.recordFor(result.getValue());
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(result.getValue());
+                ASSERT_EQUALS(string("abc"), string(record.data()));
 
                 wu.commit();
             }
@@ -639,8 +636,8 @@ namespace {
             {
                 WriteUnitOfWork wu(txn.recoveryUnit());
 
-                Record* record = rs.recordFor(*loc);
-                ASSERT_EQUALS(string("abc"), string(record->data()));
+                RecordData record = rs.dataFor(*loc);
+                ASSERT_EQUALS(string("abc"), string(record.data()));
                 ASSERT_EQUALS(rs.numRecords(), 1);
 
                 rs.deleteRecord(&txn, *loc);
@@ -679,8 +676,8 @@ namespace {
                     StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
 
                     ASSERT_TRUE(result.isOK());
-                    Record* record = rs.recordFor(result.getValue());
-                    ASSERT_EQUALS(string("abc"), string(record->data()));
+                    RecordData record = rs.dataFor(result.getValue());
+                    ASSERT_EQUALS(string("abc"), string(record.data()));
                 }
 
                 wu.commit();
@@ -698,8 +695,8 @@ namespace {
                     StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
 
                     ASSERT_TRUE(result.isOK());
-                    Record* record = rs.recordFor(result.getValue());
-                    ASSERT_EQUALS(string("abc"), string(record->data()));
+                    RecordData record = rs.dataFor(result.getValue());
+                    ASSERT_EQUALS(string("abc"), string(record.data()));
                 }
 
                 wu.commit();
