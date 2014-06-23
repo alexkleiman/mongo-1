@@ -28,24 +28,11 @@
 
 #include "mongo/db/operation_context_berkeley.h"
 
+#include <db_cxx.h>
 
 namespace mongo {
-    OperationContextBerkeley::OperationContextBerkeley(/* DbEnv env */) : 
-            _environment(0){
-        // Open the Environment, DB
-        uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
-                                            // exist, create it.
-                            DB_INIT_LOCK  | // Initialize locking
-                            DB_INIT_LOG   | // Initialize logging
-                            DB_INIT_MPOOL | // Initialize the cache
-                            DB_THREAD     | // Free-thread the env handle.
-                            DB_INIT_TXN);
-
-        //TODO change this to to be somewhere else probably
-        boost::filesystem::path dir("berkeleyEnv");
-        boost::filesystem::create_directory(dir);
-        _environment.open("berkeleyEnv", cFlags_, 0);
-
+    OperationContextBerkeley::OperationContextBerkeley(DbEnv& env) : 
+            _environment(env){
         _recoveryUnit.reset(new Berkeley1RecoveryUnit(_environment));
     }
 

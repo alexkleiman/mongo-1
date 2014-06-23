@@ -33,7 +33,6 @@
 
 #include <db_cxx.h>
 
-#include "mongo/db/storage/record.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 

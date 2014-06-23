@@ -27,7 +27,6 @@
  */
 
 #include <boost/scoped_ptr.hpp>
-#include <boost/filesystem.hpp>
 #include <db_cxx.h>
 #include <string>
 
@@ -40,7 +39,7 @@ namespace mongo {
 
     class OperationContextBerkeley : public OperationContext {
     public:
-        OperationContextBerkeley(/* DbEnv env */);
+        OperationContextBerkeley(DbEnv& env);
 
         virtual ~OperationContextBerkeley();
 
@@ -67,7 +66,7 @@ namespace mongo {
 
     private:
         boost::scoped_ptr<Berkeley1RecoveryUnit> _recoveryUnit;
-        DbEnv _environment;
+        DbEnv& _environment;
     };
 
 }  // namespace mongo
