@@ -66,6 +66,10 @@ namespace mongo {
         DbEnv& environment() { return _environment; }
 
     private:
+        /**
+         * extracts the db name from a file ending in .ns
+         */
+        std::string extractDbName(std::string fileName) const;
         DbEnv _environment;
     
     };
