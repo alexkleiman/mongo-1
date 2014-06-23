@@ -36,6 +36,7 @@
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage_options.h"
+#include "mongo/db/storage/berkeley1/berkeley1_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 namespace mongo {
@@ -88,11 +89,18 @@ namespace mongo {
 
     DatabaseCatalogEntry* Berkeley1Engine::getDatabaseCatalogEntry(OperationContext* opCtx,
             const StringData& db) {
-        invariant(!"not yet implemented");
+        return NULL;
+
+        //return new Berkeley1DatabaseCatalogEntry(db,
+                                                //storageGlobalParams.dbpath,
+                                                //_environment,
+                                                //storageGlobalParams.directoryperdb);
     }
 
     int Berkeley1Engine::flushAllFiles(bool sync) {
+        // TODO what type of flush is this?
         invariant(!"not yet implemented");
+        return -1;
     }
 
     Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
