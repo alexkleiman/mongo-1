@@ -62,7 +62,7 @@ namespace mongo {
 
         /* Note: this function reads uncommitted changes in order to preserve current
            expected behavior. Potentially change in the future */
-        virtual Record* recordFor( const DiskLoc& loc ) const;
+        virtual RecordData dataFor( const DiskLoc& loc ) const;
 
         virtual void deleteRecord( OperationContext* txn, const DiskLoc& dl );
 
@@ -124,6 +124,10 @@ namespace mongo {
         virtual long long dataSize() const;
 
         virtual long long numRecords() const;
+
+        virtual void temp_cappedTruncateAfter(OperationContext* txn,
+                                              DiskLoc end,
+                                              bool inclusive) { invariant(!"nyi"); };
 
         //
         // Not in RecordStore interface

@@ -100,7 +100,7 @@ namespace mongo {
 
     const char* BerkeleyRecordStore::name() const { return "berkeley"; }
 
-    Record* BerkeleyRecordStore::recordFor(const DiskLoc& loc) const {
+    RecordData BerkeleyRecordStore::dataFor(const DiskLoc& loc) const {
         Dbt value;
 
         int64_t key_id = getLocID(loc);
@@ -112,22 +112,23 @@ namespace mongo {
 
         invariant(const_cast<Db&>(db).get(NULL, &key, &value, DB_READ_UNCOMMITTED) == 0);
 
-        int size = reinterpret_cast<Record*>(readBuffer.get())->lengthWithHeaders();
+        int size = value.get_size();
 
-        //TODO fix this blatant memory leak
-        boost::shared_array<char> *rec = new boost::shared_array<char>(new char[size]);
-        memcpy(rec->get(), readBuffer.get(), size);
+        char* data = new char[size];
+        memcpy(data, readBuffer.get(), size);
 
-        return reinterpret_cast<Record*>(rec->get());
-        
+        return RecordData(data, size, boost::shared_array<char>(data));
     }
 
     void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc)  {
         int64_t key_id = getLocID(loc);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-        invariant(db.del(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
-                          getCurrentTransaction(), &key, 0) == 0);
+        DbTxn* ru = reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+        invariant(ru != NULL);
+
+        invariant(db.del(ru, &key, 0) == 0);
     }
 
     bool BerkeleyRecordStore::cappedAndNeedDelete() const {
@@ -151,16 +152,10 @@ namespace mongo {
                                        "object to insert exceeds cappedMaxSize");
         }
 
-        const int lengthWithHeaders = len + Record::HeaderSize;
-        boost::shared_array<char> buf(new char[lengthWithHeaders]);
-        Record* rec = reinterpret_cast<Record*>(buf.get());
-        rec->lengthWithHeaders() = lengthWithHeaders;
-        memcpy(rec->data(), data, len);
-
         const DiskLoc loc = allocateLoc(txn);
         
-        value.set_size(lengthWithHeaders);
-        value.set_data(rec);
+        value.set_size(len);
+        value.set_data(const_cast<char*>(data));
 
         int64_t key_id = getLocID(loc);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
@@ -196,21 +191,18 @@ namespace mongo {
                                        "object to insert exceeds cappedMaxSize");
         }
 
-        const int lengthWithHeaders = len + Record::HeaderSize;
-        boost::shared_array<char> buf(new char[lengthWithHeaders]);
-        Record* rec = reinterpret_cast<Record*>(buf.get());
-        rec->lengthWithHeaders() = lengthWithHeaders;
-        memcpy(rec->data(), data, len);
-
-        
-        value.set_size(lengthWithHeaders);
-        value.set_data(rec);
+        value.set_size(len);
+        value.set_data(const_cast<char*>(data));
 
         int64_t key_id = getLocID(oldLocation);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-        invariant(db.put(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
-                          getCurrentTransaction(), &key, &value, 0) == 0);
+        DbTxn* ru = reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+
+        invariant(ru != NULL);         
+
+        invariant(db.put(ru, &key, &value, 0) == 0);
 
 
         return StatusWith<DiskLoc>(oldLocation);
@@ -236,6 +228,7 @@ namespace mongo {
     std::vector<RecordIterator*> BerkeleyRecordStore::getManyIterators() const {
         invariant(!"nyi");
     }
+
 
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
         db.truncate(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
