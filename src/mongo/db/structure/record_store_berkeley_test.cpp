@@ -32,7 +32,7 @@
 
 #include "mongo/db/operation_context_berkeley.h"
 #include "mongo/db/storage/record.h"
-#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 #include "mongo/unittest/unittest.h"
 
 using namespace mongo;

@@ -46,7 +46,7 @@ namespace mongo {
         boost::filesystem::create_directory(dir);
         _environment.open("berkeleyEnv", cFlags_, 0);
 
-        _recoveryUnit.reset(new BerkeleyRecoveryUnit(_environment));
+        _recoveryUnit.reset(new Berkeley1RecoveryUnit(_environment));
     }
 
     OperationContextBerkeley::~OperationContextBerkeley() {

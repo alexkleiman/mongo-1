@@ -7,8 +7,10 @@ env.Library(
     source= [
         'berkeley1_engine.cpp',
         'berkeley1_recovery_unit.cpp',
+        'berkeley1_database_catalog_entry.cpp',
         ],
     LIBDEPS= [
-        '$BUILD_DIR/mongo/bson'
+        '$BUILD_DIR/mongo/bson',
+        '$BUILD_DIR/mongo/db/structure/record_store_berkeley',
         ]
     )
