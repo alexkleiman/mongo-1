@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <string>
 #include <db_cxx.h>
+#include <string>
 
 #include "mongo/db/diskloc.h"
 #include "mongo/db/storage/record.h"

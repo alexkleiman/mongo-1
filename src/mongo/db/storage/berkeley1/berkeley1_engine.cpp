@@ -30,32 +30,51 @@
 
 #include "db/storage/berkeley1/berkeley1_engine.h"
 
+#include <boost/filesystem.hpp>
+#include <db_cxx.h>
+
 #include "mongo/db/operation_context.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 namespace mongo {
 
-        RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {
-            invariant(!"not yet implemented");
-        }
+    // TODO figure out why  _environment(0) works. Implicits?
+    Berkeley1Engine::Berkeley1Engine(): _environment(0) {
+        uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
+                                            // exist, create it.
+                            DB_INIT_LOCK  | // Initialize locking
+                            DB_INIT_LOG   | // Initialize logging
+                            DB_INIT_MPOOL | // Initialize the cache
+                            DB_THREAD     | // Free-thread the env handle.
+                            DB_INIT_TXN);
 
-        void Berkeley1Engine::listDatabases(std::vector<std::string>* out) const {
-            invariant(!"not yet implemented");
-        }
+        boost::filesystem::path dir("berkeleyEnv");
+        boost::filesystem::create_directory(dir);
+        _environment.open("berkeleyEnv", cFlags_, 0);
+    }
 
-        DatabaseCatalogEntry* Berkeley1Engine::getDatabaseCatalogEntry(OperationContext* opCtx,
-                                                                       const StringData& db) {
-            invariant(!"not yet implemented");
-        }
+    RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {
+        return new Berkeley1RecoveryUnit(_environment);
+    }
 
-        int Berkeley1Engine::flushAllFiles(bool sync) {
-            invariant(!"not yet implemented");
-        }
+    void Berkeley1Engine::listDatabases(std::vector<std::string>* out) const {
+        invariant(!"not yet implemented");
+    }
 
-        Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
-                                                const std::string& dbName,
-                                                bool preserveClonedFilesOnFailure,
-                                                bool backupOriginalFiles) {
-            invariant(!"not yet implemented");
-        }
+    DatabaseCatalogEntry* Berkeley1Engine::getDatabaseCatalogEntry(OperationContext* opCtx,
+            const StringData& db) {
+        invariant(!"not yet implemented");
+    }
+
+    int Berkeley1Engine::flushAllFiles(bool sync) {
+        invariant(!"not yet implemented");
+    }
+
+    Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
+            const std::string& dbName,
+            bool preserveClonedFilesOnFailure,
+            bool backupOriginalFiles) {
+        invariant(!"not yet implemented");
+    }
 
 } // namespace mongo
