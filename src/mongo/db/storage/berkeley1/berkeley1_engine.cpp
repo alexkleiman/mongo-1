@@ -42,14 +42,14 @@
 
 namespace mongo {
 
-    // TODO figure out why  _environment(0) works. Implicits?
-    Berkeley1Engine::Berkeley1Engine(): _environment(0), _path("berkeley") {
+    void Berkeley1Engine::openEnvironment(DbEnv& env, uint32_t extraFlags) {
         uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
                                             // exist, create it.
                             DB_INIT_LOCK  | // Initialize locking
                             DB_INIT_LOG   | // Initialize logging
                             DB_INIT_MPOOL | // Initialize the cache
                             DB_THREAD     | // Free-thread the env handle.
+                            extraFlags    |
                             DB_INIT_TXN);
 
         // TODO, integrate storageGlobalParams.dbpath
@@ -58,6 +58,22 @@ namespace mongo {
         // Not sure if needed
         boost::filesystem::create_directory(dir);
         _environment.open(_path.data(), cFlags_, 0);
+    }
+
+    bool Berkeley1Engine::closeEnvironment(DbEnv& env) {
+        try {
+            _environment.close(0);
+        } catch (DbDeadlockException &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        } catch (DbLockNotGrantedException &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        } catch (std::exception &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        }
+        return true;
     }
 
     RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {
@@ -149,7 +165,10 @@ namespace mongo {
             const std::string& dbName,
             bool preserveClonedFilesOnFailure,
             bool backupOriginalFiles) {
-        invariant(!"not yet implemented");
+
+        closeEnvironment(_environment);
+        openEnvironment(_environment, DB_RECOVER);
+        return Status::OK();
     }
 
 } // namespace mongo
