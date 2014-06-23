@@ -70,6 +70,12 @@ namespace mongo {
          * extracts the db name from a file ending in .ns
          */
         std::string extractDbName(std::string fileName) const;
+
+        /**
+         * Opens a db, handles all exceptions, and returns a bool indicating success/failure
+         */
+        bool openDB(Db& db, const string& name);
+
         DbEnv _environment;
         std::string _path;
     };
