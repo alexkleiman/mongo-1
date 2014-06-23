@@ -1,4 +1,4 @@
-// storage_engine.cpp
+// berkeley1_engine.h
 
 /**
 *    Copyright (C) 2014 MongoDB Inc.
@@ -28,46 +28,31 @@
 *    it in the license file.
 */
 
-#include "mongo/db/storage/storage_engine.h"
-
-#include "mongo/base/init.h"
-#include "mongo/db/storage_options.h"
-#include "mongo/db/storage/berkeley1/berkeley1_engine.h"
-#include "mongo/db/storage/heap1/heap1_engine.h"
-#include "mongo/db/storage/mmap_v1/mmap_v1_engine.h"
-#include "mongo/util/log.h"
-
-#ifdef MONGO_ROCKSDB
-#include "mongo/db/storage/rocks/rocks_engine.h"
-#endif
-
 namespace mongo {
 
-    StorageEngine* globalStorageEngine = 0;
+    class Berkeley1DatabaseCatalogEntry;
 
-    MONGO_INITIALIZER_GENERAL(StorageEngineInit,
-                              ("EndStartupOptionStorage"),
-                              MONGO_NO_DEPENDENTS )
-        (InitializerContext* context) {
-        if ( storageGlobalParams.engine == "mmapv1" ) {
-            globalStorageEngine = new MMAPV1Engine();
-        }
-        else if ( storageGlobalParams.engine == "heap1" ) {
-            globalStorageEngine = new Heap1Engine();
-        }
-#ifdef MONGO_ROCKSDB
-        else if ( storageGlobalParams.engine == "rocksExperiment" ) {
-            globalStorageEngine = new RocksEngine( storageGlobalParams.dbpath );
-        }
-#endif
-        else if (storageGlobalParams.engine == "berkeley1" ) {
-            globalStorageEngine = new Berkeley1Engine();
-        }
-        else {
-            log() << "unknown storage engine: " << storageGlobalParams.engine;
-            return Status( ErrorCodes::BadValue, "unknown storage engine" );
-        }
-        return Status::OK();
-    }
+    class Berkeley1Engine : public StorageEngine {
+    public:
+        virtual ~Berkeley1Engine() {}
+
+        virtual RecoveryUnit* newRecoveryUnit( OperationContext* opCtx );
+
+        virtual void listDatabases( std::vector<std::string>* out ) const;
+
+        virtual DatabaseCatalogEntry* getDatabaseCatalogEntry( OperationContext* opCtx,
+                                                               const StringData& db );
+
+        /**
+         * @return number of files flushed
+         */
+        virtual int flushAllFiles( bool sync );
+
+        virtual Status repairDatabase( OperationContext* tnx,
+                                       const std::string& dbName,
+                                       bool preserveClonedFilesOnFailure = false,
+                                       bool backupOriginalFiles = false );
+    };
+
 }
 
