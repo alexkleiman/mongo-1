@@ -59,6 +59,9 @@ namespace mongo {
             globalStorageEngine = new RocksEngine( storageGlobalParams.dbpath );
         }
 #endif
+        else if (storageGlobalParams.engine == "berkeley1" ) {
+            globalStorageEngine = new Berkeley1Engine();
+        }
         else {
             log() << "unknown storage engine: " << storageGlobalParams.engine;
             return Status( ErrorCodes::BadValue, "unknown storage engine" );
