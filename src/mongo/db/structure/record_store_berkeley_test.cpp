@@ -34,6 +34,7 @@
 #include "mongo/db/storage/record.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 #include "mongo/unittest/unittest.h"
+#include <boost/filesystem.hpp>
 
 using namespace mongo;
 
@@ -43,10 +44,22 @@ namespace {
     DiskLoc dummyDiskLoc;
     StatusWith<DiskLoc> dummyStatusWith(dummyDiskLoc);
     std::string db_name = "berkeleytest";
+    std::string env_path = "berkeleytest";
+    uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
+                                        // exist, create it.
+                        DB_INIT_LOCK  | // Initialize locking
+                        DB_INIT_LOG   | // Initialize logging
+                        DB_INIT_MPOOL | // Initialize the cache
+                        DB_THREAD     | // Free-thread the env handle.
+                        DB_INIT_TXN);
 
     TEST(BerkeleyRecordStore, FullSimpleInsert1) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -58,17 +71,18 @@ namespace {
             }
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
 
 
     TEST(BerkeleyRecordStore, FullSimpleDelete1) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 0);
             {
@@ -87,15 +101,16 @@ namespace {
             }
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, UpdateSmaller1) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             {
@@ -112,15 +127,16 @@ namespace {
             }
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, UpdateLarger1) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
     
             {
@@ -139,15 +155,16 @@ namespace {
             }
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, MultipleUpdateLarge) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             {
@@ -185,15 +202,16 @@ namespace {
             }
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleInsertion) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -212,15 +230,16 @@ namespace {
             ASSERT_EQUALS(rs.dataSize(), 0);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleInsertion) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -241,15 +260,16 @@ namespace {
             ASSERT_EQUALS(rs.numRecords(), 1);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleDeletion) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -275,15 +295,16 @@ namespace {
             ASSERT_EQUALS(string("abc"), string(record.data()));
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleDeletion) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -304,15 +325,16 @@ namespace {
             ASSERT_EQUALS(rs.numRecords(), 0);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, RollbackSingleUpdate) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> insertResult = dummyStatusWith;
@@ -340,15 +362,16 @@ namespace {
                     || !rs.hasRecordFor(updateResult.getValue()));
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, CommitSingleUpdate) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> insertResult = dummyStatusWith;
@@ -377,15 +400,16 @@ namespace {
                     || !rs.hasRecordFor(insertResult.getValue()));
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, MultiCommitsMixed) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
@@ -461,15 +485,16 @@ namespace {
             ASSERT_EQUALS(rs.numRecords(), 2);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, MultiRollbacksMixed) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
@@ -565,15 +590,16 @@ namespace {
             ASSERT_EQUALS(rs.numRecords(), 3);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, MultipleRecordStores) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore firstRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             BerkeleyRecordStore secondRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             BerkeleyRecordStore thirdRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
@@ -603,17 +629,18 @@ namespace {
             ASSERT_EQUALS(thirdRs.numRecords(), 0);
         }
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, Persistence1) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         DiskLoc* loc;
 
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -629,8 +656,13 @@ namespace {
             }
         }
 
+        env.close(0);
+
+        DbEnv env2(0);
+        env2.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env2);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 1);
             {
@@ -650,23 +682,24 @@ namespace {
         }
 
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 0);
         }
 
         delete loc;
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
     TEST(BerkeleyRecordStore, Persistence2) {
+        boost::filesystem::create_directory(env_path);
+        DbEnv env(0);
+        env.open(env_path.data(), cFlags_, 0);
+
         const int num_inserts = 1000;
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -684,8 +717,13 @@ namespace {
             }
         }
 
+        env.close(0);
+
+        DbEnv env2(0);
+        env2.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env2);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), num_inserts);
             {
@@ -703,17 +741,19 @@ namespace {
             }
         }
 
+        env2.close(0);
+
+        DbEnv env3(0);
+        env3.open(env_path.data(), cFlags_, 0);
+
         {
-            OperationContextBerkeley txn;
+            OperationContextBerkeley txn(env3);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 2 * num_inserts);
         }
 
 
-        // Maybe make this cleanup cleaner in the future
-        Db(NULL, 0).remove(("berkeleyEnv/" + db_name + ".db").data(), NULL, 0);
-        DbEnv(0).remove("berkeleyEnv/", DB_FORCE);
-        remove("berkeleyEnv/log.0000000001");
+        boost::filesystem::remove_all(env_path);
     }
 
 } // namespace

@@ -43,7 +43,7 @@ namespace mongo {
     public:
         Berkeley1Engine();
 
-        ~Berkeley1Engine() {}
+        ~Berkeley1Engine() {  _environment.close(0); }
 
         virtual RecoveryUnit* newRecoveryUnit(OperationContext* opCtx);
 
@@ -71,7 +71,7 @@ namespace mongo {
          */
         std::string extractDbName(std::string fileName) const;
         DbEnv _environment;
-    
+        std::string _path;
     };
 }
 

@@ -47,12 +47,26 @@
 namespace mongo {
 
     Berkeley1DatabaseCatalogEntry::Berkeley1DatabaseCatalogEntry( const StringData& name,
-                                                                  DbEnv& env)
+                                                                  const StringData& path_name,
+                                                                  DbEnv& env,
+                                                                  )
         : DatabaseCatalogEntry( name ),
-          _env(env) {
+          _path( path.toString() )
+          _env( env ) {
         _everHadACollection = false;
-        // TODO read all the stuff in from disk
 
+        boost::filesystem::path path(path_name.toString());
+        invariant( exists( path ) );
+        boost::filesystem::directory_iterator end_itr; 
+        for ( boost::filesystem::directory_iterator itr( path ); itr != end_itr; ++itr ) {
+            if ( is_directory(itr->status()) )
+                continue;
+            else {
+              path_found = itr->path();
+              return true;
+            }
+          }
+          return false;
     }
 
     Berkeley1DatabaseCatalogEntry::~Berkeley1DatabaseCatalogEntry() {
