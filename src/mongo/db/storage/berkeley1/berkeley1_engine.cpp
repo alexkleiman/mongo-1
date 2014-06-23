@@ -35,11 +35,12 @@
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
+//#include "mongo/db/storage_options.h"
 
 namespace mongo {
 
     // TODO figure out why  _environment(0) works. Implicits?
-    Berkeley1Engine::Berkeley1Engine(): _environment(0) {
+    Berkeley1Engine::Berkeley1Engine(): _environment(0), _path("berkeley") {
         uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
                                             // exist, create it.
                             DB_INIT_LOCK  | // Initialize locking
@@ -48,9 +49,12 @@ namespace mongo {
                             DB_THREAD     | // Free-thread the env handle.
                             DB_INIT_TXN);
 
-        boost::filesystem::path dir("berkeleyEnv");
+        // TODO, integrate storageGlobalParams.dbpath
+        boost::filesystem::path dir(_path);
+
+        // Not sure if needed
         boost::filesystem::create_directory(dir);
-        _environment.open("berkeleyEnv", cFlags_, 0);
+        _environment.open(_path.data(), cFlags_, 0);
     }
 
     RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {

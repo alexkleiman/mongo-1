@@ -158,6 +158,7 @@ namespace mongo {
 
         bool _everHadACollection;
         DbEnv& _env;
+        std::string _path;
 
         mutable boost::mutex _entryMapLock;
         typedef std::map<std::string,Entry*> EntryMap;
