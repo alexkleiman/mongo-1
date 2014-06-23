@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include <db_cxx.h>
 #include <string>
 
 #include "mongo/db/storage/storage_engine.h"
@@ -40,7 +41,9 @@ namespace mongo {
 
     class Berkeley1Engine : public StorageEngine {
     public:
-        virtual ~Berkeley1Engine() {}
+        Berkeley1Engine();
+
+        ~Berkeley1Engine() {}
 
         virtual RecoveryUnit* newRecoveryUnit( OperationContext* opCtx );
 
@@ -58,7 +61,13 @@ namespace mongo {
                                        const std::string& dbName,
                                        bool preserveClonedFilesOnFailure = false,
                                        bool backupOriginalFiles = false );
-    };
 
+        // not in StorageEngine interface
+        DbEnv& environment() { return _environment; }
+
+    private:
+        DbEnv _environment;
+    
+    };
 }
 
