@@ -229,7 +229,6 @@ namespace mongo {
         invariant(!"nyi");
     }
 
-
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
         db.truncate(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), NULL, 0);

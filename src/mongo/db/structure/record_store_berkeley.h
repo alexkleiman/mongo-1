@@ -125,6 +125,7 @@ namespace mongo {
 
         virtual long long numRecords() const;
 
+
         virtual void temp_cappedTruncateAfter(OperationContext* txn,
                                               DiskLoc end,
                                               bool inclusive) { invariant(!"nyi"); };

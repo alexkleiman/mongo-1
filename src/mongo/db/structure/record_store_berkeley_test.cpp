@@ -373,6 +373,7 @@ namespace {
             // make sure that the update persisted
             RecordData updatedRecord = rs.dataFor(updateResult.getValue());
             ASSERT_EQUALS(string("def"), string(updatedRecord.data()));
+
             ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                     || !rs.hasRecordFor(insertResult.getValue()));
         }
@@ -554,6 +555,7 @@ namespace {
             } // calls secondWu's destructor, equivalent to saying secondWu._ru->endUnitOfWork();
 
             // make sure everything was rolled back properly
+
             RecordData firstNewRecord = rs.dataFor(firstInsertResult.getValue());
             RecordData secondNewRecord = rs.dataFor(secondInsertResult.getValue());
             RecordData thirdNewRecord = rs.dataFor(thirdInsertResult.getValue());
@@ -622,6 +624,7 @@ namespace {
                 loc = new DiskLoc(result.getValue());
 
                 ASSERT_TRUE(result.isOK());
+
                 RecordData record = rs.dataFor(result.getValue());
                 ASSERT_EQUALS(string("abc"), string(record.data()));
 
@@ -676,6 +679,7 @@ namespace {
                     StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
 
                     ASSERT_TRUE(result.isOK());
+
                     RecordData record = rs.dataFor(result.getValue());
                     ASSERT_EQUALS(string("abc"), string(record.data()));
                 }
@@ -695,6 +699,7 @@ namespace {
                     StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
 
                     ASSERT_TRUE(result.isOK());
+
                     RecordData record = rs.dataFor(result.getValue());
                     ASSERT_EQUALS(string("abc"), string(record.data()));
                 }
