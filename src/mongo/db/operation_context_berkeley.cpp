@@ -31,9 +31,7 @@
 #include <db_cxx.h>
 
 namespace mongo {
-    OperationContextBerkeley::OperationContextBerkeley(DbEnv& env) : 
-            _environment(env){
-
+    OperationContextBerkeley::OperationContextBerkeley(DbEnv& env) : _environment(env){
         _recoveryUnit.reset(new Berkeley1RecoveryUnit(_environment));
     }
 

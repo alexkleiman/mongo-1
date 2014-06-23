@@ -33,6 +33,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <db_cxx.h>
 
 #include <boost/thread/mutex.hpp>
 
@@ -45,7 +46,7 @@ namespace mongo {
 
     class Berkeley1DatabaseCatalogEntry : public DatabaseCatalogEntry {
     public:
-        Berkeley1DatabaseCatalogEntry( const StringData& name );
+        Berkeley1DatabaseCatalogEntry( const StringData& name, DbEnv& env);
 
         virtual ~Berkeley1DatabaseCatalogEntry();
 
@@ -64,7 +65,7 @@ namespace mongo {
          * @return true if current files on disk are compatibile with the current version.
          *              if we return false, then an upgrade will be required
          */
-        virtual bool currentFilesCompatible( OperationContext* opCtx ) const;
+        virtual bool currentFilesCompatible( OperationContext* opCtx ) const { invariant(!"nyi"); }
 
         // ----
 
@@ -156,6 +157,7 @@ namespace mongo {
         };
 
         bool _everHadACollection;
+        DbEnv& _env;
 
         mutable boost::mutex _entryMapLock;
         typedef std::map<std::string,Entry*> EntryMap;

@@ -34,7 +34,7 @@
 #include <db_cxx.h>
 
 #include "mongo/db/operation_context.h"
-#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 
 //TODO find maximum record length
@@ -123,7 +123,7 @@ namespace mongo {
         int64_t key_id = getLocID(loc);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-        DbTxn* ru = reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
         invariant(ru != NULL);
 
@@ -160,7 +160,7 @@ namespace mongo {
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
 
-        DbTxn* ru = reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
         invariant(ru != NULL);
 
@@ -196,7 +196,7 @@ namespace mongo {
         int64_t key_id = getLocID(oldLocation);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-        DbTxn* ru = reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
 
         invariant(ru != NULL);         
@@ -230,7 +230,7 @@ namespace mongo {
 
 
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
-        db.truncate(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        db.truncate(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), NULL, 0);
 
         return Status::OK();
@@ -243,7 +243,7 @@ namespace mongo {
                                     RecordStoreCompactAdaptor* adaptor,
                                     const CompactOptions* options,
                                     CompactStats* stats) {
-        invariant(db.compact(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        invariant(db.compact(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), NULL, NULL, NULL, 0, NULL) == 0);
 
         return Status::OK();
@@ -298,7 +298,7 @@ namespace mongo {
         value.set_ulen(sizeof(int64_t));
 
         DbTxn* transaction = NULL;
-        _env.txn_begin(reinterpret_cast<BerkeleyRecoveryUnit*>(txn->recoveryUnit())->
+        _env.txn_begin(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), &transaction, 0);
         if (const_cast<Db&>(db).get(transaction, &key, &value, DB_READ_UNCOMMITTED) == DB_NOTFOUND) {
           id = 0;
