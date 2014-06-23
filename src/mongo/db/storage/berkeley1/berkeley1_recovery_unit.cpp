@@ -1,4 +1,4 @@
-// berkeley_recovery_unit.cpp
+// berkeley1_recovery_unit.cpp
 
 /**
  *    Copyright (C) 2014 MongoDB Inc.
@@ -28,7 +28,7 @@
  *    it in the license file.
  */
 
-#include "mongo/db/storage/berkeley/berkeley_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 #include <db_cxx.h>
 
@@ -36,12 +36,12 @@
 
 namespace mongo {
 
-    void BerkeleyRecoveryUnit::beginUnitOfWork() {
+    void Berkeley1RecoveryUnit::beginUnitOfWork() {
         invariant(_bdbTransaction == NULL);
         _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
     }
 
-    void BerkeleyRecoveryUnit::commitUnitOfWork() {
+    void Berkeley1RecoveryUnit::commitUnitOfWork() {
         invariant(_bdbTransaction != NULL);
         _bdbTransaction->commit(_commitFlags);
 
@@ -51,37 +51,37 @@ namespace mongo {
         _bdbEnv.txn_begin(NULL, &_bdbTransaction, _transactionFlags);
     }
 
-    void BerkeleyRecoveryUnit::endUnitOfWork() {
+    void Berkeley1RecoveryUnit::endUnitOfWork() {
         invariant(_bdbTransaction != NULL);
         _bdbTransaction->abort();
         _bdbTransaction = NULL;
         // TODO figure out what to do in cases of error
     }
 
-    bool BerkeleyRecoveryUnit::awaitCommit() {
-        invariant(!"awaitCommit should never be called on a BerkeleyRecoveryUnit");
+    bool Berkeley1RecoveryUnit::awaitCommit() {
+        invariant(!"awaitCommit should never be called on a Berkeley1RecoveryUnit");
     }
 
-    bool BerkeleyRecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"commitIfNeeded should never be called on a BerkeleyRecoveryUnit");
+    bool Berkeley1RecoveryUnit::commitIfNeeded(bool force) {
+        invariant(!"commitIfNeeded should never be called on a Berkeley1RecoveryUnit");
     }
 
-    bool BerkeleyRecoveryUnit::isCommitNeeded() const {
-        invariant(!"isCommitNeeded should never be called on a BerkeleyRecoveryUnit");
+    bool Berkeley1RecoveryUnit::isCommitNeeded() const {
+        invariant(!"isCommitNeeded should never be called on a Berkeley1RecoveryUnit");
     }
 
-    void* BerkeleyRecoveryUnit::writingPtr(void* data, size_t len) {
-        invariant(!"writingPtr should never be called on a BerkeleyRecoveryUnit");
+    void* Berkeley1RecoveryUnit::writingPtr(void* data, size_t len) {
+        invariant(!"writingPtr should never be called on a Berkeley1RecoveryUnit");
     }
 
-    void BerkeleyRecoveryUnit::syncDataAndTruncateJournal() {
+    void Berkeley1RecoveryUnit::syncDataAndTruncateJournal() {
         invariant(_bdbTransaction != NULL);
         _bdbEnv.txn_checkpoint(0, 0, 0);
 
         // TODO figure out what to do in case of error
     }
 
-    DbTxn* BerkeleyRecoveryUnit::getCurrentTransaction() {
+    DbTxn* Berkeley1RecoveryUnit::getCurrentTransaction() {
         return _bdbTransaction;
     }
 

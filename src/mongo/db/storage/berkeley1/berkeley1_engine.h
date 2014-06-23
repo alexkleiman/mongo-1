@@ -28,6 +28,12 @@
 *    it in the license file.
 */
 
+#pragma once
+
+#include <string>
+
+#include "mongo/db/storage/storage_engine.h"
+
 namespace mongo {
 
     class Berkeley1DatabaseCatalogEntry;
