@@ -50,6 +50,9 @@ namespace mongo {
         else if ( storageGlobalParams.engine == "heap1" ) {
             globalStorageEngine = new Heap1Engine();
         }
+        else if (storageGlobalParams.engine == "berkeley1" ) {
+            globalStorageEngine = new Berkeley1Engine();
+        }
         else {
             log() << "unknown storage engine: " << storageGlobalParams.engine;
             return Status( ErrorCodes::BadValue, "unknown storage engine" );
