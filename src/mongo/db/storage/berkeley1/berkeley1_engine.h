@@ -45,27 +45,31 @@ namespace mongo {
 
         ~Berkeley1Engine() {  _environment.close(0); }
 
-        virtual RecoveryUnit* newRecoveryUnit( OperationContext* opCtx );
+        virtual RecoveryUnit* newRecoveryUnit(OperationContext* opCtx);
 
-        virtual void listDatabases( std::vector<std::string>* out ) const;
+        virtual void listDatabases(std::vector<std::string>* out) const;
 
-        virtual DatabaseCatalogEntry* getDatabaseCatalogEntry( OperationContext* opCtx,
-                                                               const StringData& db );
+        virtual DatabaseCatalogEntry* getDatabaseCatalogEntry(OperationContext* opCtx,
+                                                              const StringData& db);
 
         /**
          * @return number of files flushed
          */
-        virtual int flushAllFiles( bool sync );
+        virtual int flushAllFiles(bool sync);
 
-        virtual Status repairDatabase( OperationContext* tnx,
-                                       const std::string& dbName,
-                                       bool preserveClonedFilesOnFailure = false,
-                                       bool backupOriginalFiles = false );
+        virtual Status repairDatabase(OperationContext* tnx,
+                                      const std::string& dbName,
+                                      bool preserveClonedFilesOnFailure = false,
+                                      bool backupOriginalFiles = false);
 
         // not in StorageEngine interface
         DbEnv& environment() { return _environment; }
 
     private:
+        /**
+         * extracts the db name from a file ending in .ns
+         */
+        std::string extractDbName(std::string fileName) const;
         DbEnv _environment;
         std::string _path;
     };

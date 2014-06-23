@@ -31,9 +31,12 @@
 #include "db/storage/berkeley1/berkeley1_engine.h"
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <db_cxx.h>
 
 #include "mongo/db/operation_context.h"
+#include "mongo/db/storage_options.h"
+#include "mongo/db/storage/berkeley1/berkeley1_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 //#include "mongo/db/storage_options.h"
 
@@ -61,17 +64,47 @@ namespace mongo {
         return new Berkeley1RecoveryUnit(_environment);
     }
 
+    string Berkeley1Engine::extractDbName(string fileName) const {
+        string::size_type nameLength = fileName.length();
+        invariant(nameLength > 3);
+
+        return fileName.substr(0, nameLength - 3);
+    }
+
     void Berkeley1Engine::listDatabases(std::vector<std::string>* out) const {
-        invariant(!"not yet implemented");
+        boost::filesystem::path path("/berkeleyEnv");
+        for (boost::filesystem::directory_iterator it(path); 
+                it != boost::filesystem::directory_iterator();
+              ++it) {
+            if (storageGlobalParams.directoryperdb) {
+                boost::filesystem::path p = *it;
+                string fileName = p.filename().string();
+                if (exists(p)) {
+                    out->push_back(extractDbName(fileName));
+                }
+            }
+            else {
+                string fileName = boost::filesystem::path(*it).filename().string();
+                if (fileName.length() > 3 && fileName.substr(fileName.length() - 3, 3) == ".ns")
+                    out->push_back(fileName.substr(0, fileName.length() - 3));
+            }
+        }
     }
 
     DatabaseCatalogEntry* Berkeley1Engine::getDatabaseCatalogEntry(OperationContext* opCtx,
             const StringData& db) {
-        invariant(!"not yet implemented");
+        return NULL;
+
+        //return new Berkeley1DatabaseCatalogEntry(db,
+                                                //storageGlobalParams.dbpath,
+                                                //_environment,
+                                                //storageGlobalParams.directoryperdb);
     }
 
     int Berkeley1Engine::flushAllFiles(bool sync) {
+        // TODO what type of flush is this?
         invariant(!"not yet implemented");
+        return -1;
     }
 
     Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
