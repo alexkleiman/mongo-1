@@ -39,34 +39,59 @@
 #include "mongo/db/index/index_access_method.h"
 #include "mongo/db/index/index_descriptor.h"
 #include "mongo/db/index/s2_access_method.h"
+#include "mongo/db/storage_options.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_btree_impl.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 #include "mongo/db/structure/record_store_berkeley.h"
+
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
 
 namespace mongo {
 
     Berkeley1DatabaseCatalogEntry::Berkeley1DatabaseCatalogEntry( const StringData& name,
                                                                   const StringData& path_name,
                                                                   DbEnv& env,
-                                                                  )
+                                                                  bool directoryperdb)
         : DatabaseCatalogEntry( name ),
-          _path( path.toString() )
-          _env( env ) {
+          _path( path_name.toString() ),
+          _env( env ),
+          _directoryperdb(directoryperdb) {
         _everHadACollection = false;
 
         boost::filesystem::path path(path_name.toString());
-        invariant( exists( path ) );
-        boost::filesystem::directory_iterator end_itr; 
-        for ( boost::filesystem::directory_iterator itr( path ); itr != end_itr; ++itr ) {
-            if ( is_directory(itr->status()) )
-                continue;
-            else {
-              path_found = itr->path();
-              return true;
+        for (boost::filesystem::directory_iterator it(path);
+                it != boost::filesystem::directory_iterator();
+              ++it) {
+            if (storageGlobalParams.directoryperdb) {
+                //TODO
             }
-          }
-          return false;
+            else {
+                string fileName = boost::filesystem::path(*it).filename().string();
+
+                if (fileName.size() < name.toString().size() + 5)
+                    continue;                
+
+                if ((name.toString() + ".").compare(0, name.toString().size() + 1, fileName))
+                    continue;
+
+                if (fileName.substr(fileName.length() - 3, 3) != ".db")
+                    continue;
+
+                string ns_string = fileName.substr(0, fileName.length() - 3);
+                StringData ns(ns_string);
+                
+                // Create entry, record store for collection
+                Entry*& entry = _entryMap[ ns.toString() ];
+                invariant ( !entry );
+
+                entry = new Entry( ns );
+
+                // TODO figure out if capped
+                entry->rs.reset( new BerkeleyRecordStore( env, ns ) );
+            }
+        }
     }
 
     Berkeley1DatabaseCatalogEntry::~Berkeley1DatabaseCatalogEntry() {

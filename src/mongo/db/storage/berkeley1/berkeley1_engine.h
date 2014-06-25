@@ -89,7 +89,6 @@ namespace mongo {
         bool closeEnvironment(DbEnv& env);
 
         DbEnv _environment;
-        std::string _path;
     };
 }
 
