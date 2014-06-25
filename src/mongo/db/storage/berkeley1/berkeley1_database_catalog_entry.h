@@ -46,7 +46,10 @@ namespace mongo {
 
     class Berkeley1DatabaseCatalogEntry : public DatabaseCatalogEntry {
     public:
-        Berkeley1DatabaseCatalogEntry( const StringData& name, DbEnv& env);
+        Berkeley1DatabaseCatalogEntry( const StringData& name, 
+                                       const StringData& path_name, 
+                                       DbEnv& env,
+                                       bool directoryperdb);
 
         virtual ~Berkeley1DatabaseCatalogEntry();
 
@@ -157,8 +160,9 @@ namespace mongo {
         };
 
         bool _everHadACollection;
-        DbEnv& _env;
         std::string _path;
+        DbEnv& _env;
+        bool _directoryperdb;
 
         mutable boost::mutex _entryMapLock;
         typedef std::map<std::string,Entry*> EntryMap;

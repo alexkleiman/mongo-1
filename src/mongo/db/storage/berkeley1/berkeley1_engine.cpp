@@ -36,14 +36,14 @@
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage_options.h"
-#include "mongo/db/storage/berkeley1/berkeley1_catalog_entry.h"
+#include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 //#include "mongo/db/storage_options.h"
 
 namespace mongo {
 
     // TODO figure out why  _environment(0) works. Implicits?
-    Berkeley1Engine::Berkeley1Engine(): _environment(0), _path("berkeley") {
+    Berkeley1Engine::Berkeley1Engine(): _environment(0) {
         uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
                                             // exist, create it.
                             DB_INIT_LOCK  | // Initialize locking
@@ -52,12 +52,8 @@ namespace mongo {
                             DB_THREAD     | // Free-thread the env handle.
                             DB_INIT_TXN);
 
-        // TODO, integrate storageGlobalParams.dbpath
-        boost::filesystem::path dir(_path);
-
-        // Not sure if needed
-        boost::filesystem::create_directory(dir);
-        _environment.open(_path.data(), cFlags_, 0);
+        boost::filesystem::path dir(storageGlobalParams.dbpath);
+        _environment.open(storageGlobalParams.dbpath.data(), cFlags_, 0);
     }
 
     RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {
@@ -72,7 +68,7 @@ namespace mongo {
     }
 
     void Berkeley1Engine::listDatabases(std::vector<std::string>* out) const {
-        boost::filesystem::path path("/berkeleyEnv");
+        boost::filesystem::path path(storageGlobalParams.dbpath);
         for (boost::filesystem::directory_iterator it(path); 
                 it != boost::filesystem::directory_iterator();
               ++it) {
@@ -85,7 +81,7 @@ namespace mongo {
             }
             else {
                 string fileName = boost::filesystem::path(*it).filename().string();
-                if (fileName.length() > 3 && fileName.substr(fileName.length() - 3, 3) == ".ns")
+                if (fileName.length() > 3 && fileName.substr(fileName.length() - 3, 3) == ".db")
                     out->push_back(fileName.substr(0, fileName.length() - 3));
             }
         }
@@ -93,12 +89,11 @@ namespace mongo {
 
     DatabaseCatalogEntry* Berkeley1Engine::getDatabaseCatalogEntry(OperationContext* opCtx,
             const StringData& db) {
-        return NULL;
 
-        //return new Berkeley1DatabaseCatalogEntry(db,
-                                                //storageGlobalParams.dbpath,
-                                                //_environment,
-                                                //storageGlobalParams.directoryperdb);
+        return new Berkeley1DatabaseCatalogEntry(db,
+                                                storageGlobalParams.dbpath,
+                                                _environment,
+                                                storageGlobalParams.directoryperdb);
     }
 
     int Berkeley1Engine::flushAllFiles(bool sync) {

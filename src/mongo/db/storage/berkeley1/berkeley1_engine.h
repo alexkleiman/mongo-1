@@ -71,7 +71,6 @@ namespace mongo {
          */
         std::string extractDbName(std::string fileName) const;
         DbEnv _environment;
-        std::string _path;
     };
 }
 
