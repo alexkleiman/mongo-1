@@ -38,7 +38,6 @@
 #include "mongo/db/storage_options.h"
 #include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
-//#include "mongo/db/storage_options.h"
 
 namespace mongo {
 
@@ -52,7 +51,6 @@ namespace mongo {
                             extraFlags    |
                             DB_INIT_TXN);
 
-        boost::filesystem::path dir(storageGlobalParams.dbpath);
         _environment.open(storageGlobalParams.dbpath.data(), cFlags_, 0);
     }
 
