@@ -64,10 +64,10 @@ namespace mongo {
         for (boost::filesystem::directory_iterator it(path);
                 it != boost::filesystem::directory_iterator();
               ++it) {
-            if (storageGlobalParams.directoryperdb) {
+            /*if (storageGlobalParams.directoryperdb) {
                 //TODO
             }
-            else {
+            else {*/
                 string fileName = boost::filesystem::path(*it).filename().string();
 
                 if (fileName.size() < name.toString().size() + 5)
@@ -90,7 +90,7 @@ namespace mongo {
 
                 // TODO figure out if capped
                 entry->rs.reset( new BerkeleyRecordStore( env, ns ) );
-            }
+            //}
         }
     }
 
