@@ -42,7 +42,13 @@ namespace mongo {
     class Berkeley1Engine : public StorageEngine {
     public:
         // TODO figure out why  _environment(0) works. Implicits?
-        Berkeley1Engine(): _environment(0) { openEnvironment(_environment, 0); }
+        Berkeley1Engine(bool directoryperdb, std::string dbpath): 
+                                             _directoryperdb(directoryperdb),
+                                             _dbpath(dbpath),
+                                             _environment(0) { 
+                            openEnvironment(_environment, 0, 
+                            dbpath); 
+                        }
 
         ~Berkeley1Engine() { closeEnvironment(_environment); }
 
@@ -80,13 +86,15 @@ namespace mongo {
         /**
          * Opens an environment
          */
-        void openEnvironment(DbEnv& env, uint32_t extraFlags);
+        void openEnvironment(DbEnv& env, uint32_t extraFlags, std::string dbpath);
 
         /**
          * Closes an environment, handles all exceptions, and returns a bool indicating success
          */
         bool closeEnvironment(DbEnv& env);
 
+        bool _directoryperdb;
+        std::string _dbpath;
         DbEnv _environment;
     };
 }

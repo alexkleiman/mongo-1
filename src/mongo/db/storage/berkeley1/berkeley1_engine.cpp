@@ -35,13 +35,12 @@
 #include <db_cxx.h>
 
 #include "mongo/db/operation_context.h"
-#include "mongo/db/storage_options.h"
 #include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 namespace mongo {
 
-    void Berkeley1Engine::openEnvironment(DbEnv& env, uint32_t extraFlags) {
+    void Berkeley1Engine::openEnvironment(DbEnv& env, uint32_t extraFlags, std::string dbpath) {
         uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
                                             // exist, create it.
                             DB_INIT_LOCK  | // Initialize locking
@@ -51,7 +50,7 @@ namespace mongo {
                             extraFlags    |
                             DB_INIT_TXN);
 
-        _environment.open(storageGlobalParams.dbpath.data(), cFlags_, 0);
+        _environment.open(dbpath.data(), cFlags_, 0);
     }
 
     bool Berkeley1Engine::closeEnvironment(DbEnv& env) {
@@ -82,11 +81,11 @@ namespace mongo {
     }
 
     void Berkeley1Engine::listDatabases(std::vector<std::string>* out) const {
-        boost::filesystem::path path(storageGlobalParams.dbpath);
+        boost::filesystem::path path(_dbpath);
         for (boost::filesystem::directory_iterator it(path); 
                 it != boost::filesystem::directory_iterator();
               ++it) {
-            if (storageGlobalParams.directoryperdb) {
+            if (_directoryperdb) {
                 boost::filesystem::path p = *it;
                 string fileName = p.filename().string();
                 if (exists(p)) {
@@ -105,9 +104,9 @@ namespace mongo {
             const StringData& db) {
 
         return new Berkeley1DatabaseCatalogEntry(db,
-                                                storageGlobalParams.dbpath,
+                                                StringData(_dbpath),
                                                 _environment,
-                                                storageGlobalParams.directoryperdb);
+                                                _directoryperdb);
     }
 
     bool Berkeley1Engine::openDB(Db& db, const string& name) {
@@ -137,8 +136,8 @@ namespace mongo {
 
         int numFlushed = 0;
 
-        for (vector<string>::iterator it; it != databases.end(); ++it) {
-            string fullPath = storageGlobalParams.dbpath + *it + ".db";
+        for (vector<string>::iterator it = databases.begin(); it != databases.end(); ++it) {
+            string fullPath = _dbpath + *it + ".db";
             Db db(&_environment, 0);
 
             // open the database, worry about exceptions in the helper method
@@ -160,7 +159,7 @@ namespace mongo {
             bool backupOriginalFiles) {
 
         closeEnvironment(_environment);
-        openEnvironment(_environment, DB_RECOVER);
+        openEnvironment(_environment, DB_RECOVER, _dbpath);
         return Status::OK();
     }
 

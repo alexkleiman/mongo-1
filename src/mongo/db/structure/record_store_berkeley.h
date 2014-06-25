@@ -130,6 +130,8 @@ namespace mongo {
                                               DiskLoc end,
                                               bool inclusive) { invariant(!"nyi"); };
 
+        void setCappedDeleteCallback(CappedDocumentDeleteCallback* cb) { _cappedDeleteCallback = cb; }
+
         //
         // Not in RecordStore interface
         //
@@ -158,7 +160,7 @@ namespace mongo {
         const int64_t _cappedMaxSize;
         const int64_t _cappedMaxDocs;
 
-        CappedDocumentDeleteCallback* const _cappedDeleteCallback;
+        CappedDocumentDeleteCallback* _cappedDeleteCallback;
         Db db;
         DbEnv& _env;
         boost::shared_array<char> readBuffer;
