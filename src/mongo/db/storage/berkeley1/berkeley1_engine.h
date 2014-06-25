@@ -41,9 +41,10 @@ namespace mongo {
 
     class Berkeley1Engine : public StorageEngine {
     public:
-        Berkeley1Engine();
+        // TODO figure out why  _environment(0) works. Implicits?
+        Berkeley1Engine(): _environment(0) { openEnvironment(_environment, 0); }
 
-        ~Berkeley1Engine() {  _environment.close(0); }
+        ~Berkeley1Engine() { closeEnvironment(_environment); }
 
         virtual RecoveryUnit* newRecoveryUnit(OperationContext* opCtx);
 
@@ -70,6 +71,22 @@ namespace mongo {
          * extracts the db name from a file ending in .ns
          */
         std::string extractDbName(std::string fileName) const;
+
+        /**
+         * Opens a db, handles all exceptions, and returns a bool indicating success
+         */
+        bool openDB(Db& db, const string& name);
+
+        /**
+         * Opens an environment
+         */
+        void openEnvironment(DbEnv& env, uint32_t extraFlags);
+
+        /**
+         * Closes an environment, handles all exceptions, and returns a bool indicating success
+         */
+        bool closeEnvironment(DbEnv& env);
+
         DbEnv _environment;
     };
 }

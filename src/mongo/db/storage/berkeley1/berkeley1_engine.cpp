@@ -42,18 +42,34 @@
 
 namespace mongo {
 
-    // TODO figure out why  _environment(0) works. Implicits?
-    Berkeley1Engine::Berkeley1Engine(): _environment(0) {
+    void Berkeley1Engine::openEnvironment(DbEnv& env, uint32_t extraFlags) {
         uint32_t cFlags_ = (DB_CREATE     | // If the environment does not
                                             // exist, create it.
                             DB_INIT_LOCK  | // Initialize locking
                             DB_INIT_LOG   | // Initialize logging
                             DB_INIT_MPOOL | // Initialize the cache
                             DB_THREAD     | // Free-thread the env handle.
+                            extraFlags    |
                             DB_INIT_TXN);
 
         boost::filesystem::path dir(storageGlobalParams.dbpath);
         _environment.open(storageGlobalParams.dbpath.data(), cFlags_, 0);
+    }
+
+    bool Berkeley1Engine::closeEnvironment(DbEnv& env) {
+        try {
+            _environment.close(0);
+        } catch (DbDeadlockException &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        } catch (DbLockNotGrantedException &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        } catch (std::exception &e) {
+            error() << "Error closing environment: " << e.what() << std::endl;
+            return false;
+        }
+        return true;
     }
 
     RecoveryUnit* Berkeley1Engine::newRecoveryUnit(OperationContext* opCtx) {
@@ -96,17 +112,58 @@ namespace mongo {
                                                 storageGlobalParams.directoryperdb);
     }
 
+    bool Berkeley1Engine::openDB(Db& db, const string& name) {
+
+        static uint32_t cFlags_ = (DB_CREATE | DB_AUTO_COMMIT | DB_READ_UNCOMMITTED);
+
+        try {
+            db.open(NULL, name.data(), NULL, DB_BTREE, cFlags_, 0);
+        } catch(DbException &e) {
+            error() << "Error opening database: " << name << "\n";
+            error() << e.what() << std::endl;
+            return false;
+        } catch(std::exception &e) {
+            error() << "Error opening database: " << name << "\n";
+            error() << e.what() << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
     int Berkeley1Engine::flushAllFiles(bool sync) {
-        // TODO what type of flush is this?
-        invariant(!"not yet implemented");
-        return -1;
+        vector<std::string> databases;
+
+        // get the names of all the databases
+        listDatabases(&databases);
+
+        int numFlushed = 0;
+
+        for (vector<string>::iterator it; it != databases.end(); ++it) {
+            string fullPath = storageGlobalParams.dbpath + *it + ".db";
+            Db db(&_environment, 0);
+
+            // open the database, worry about exceptions in the helper method
+            if (!openDB(db, *it)){
+                continue;
+            }
+
+            db.sync(0);
+            ++numFlushed;
+            db.close(0);
+        }
+
+        return numFlushed;
     }
 
     Status Berkeley1Engine::repairDatabase(OperationContext* tnx,
             const std::string& dbName,
             bool preserveClonedFilesOnFailure,
             bool backupOriginalFiles) {
-        invariant(!"not yet implemented");
+
+        closeEnvironment(_environment);
+        openEnvironment(_environment, DB_RECOVER);
+        return Status::OK();
     }
 
 } // namespace mongo
