@@ -61,6 +61,8 @@ namespace mongo {
 
         virtual const char * getNS() const;
 
+        virtual Transaction* getTransaction();
+
         // not in OperationContext API
         DbEnv& getEnv() { return _environment; }
 

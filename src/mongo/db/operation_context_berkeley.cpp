@@ -75,4 +75,9 @@ namespace mongo {
     const char * OperationContextBerkeley::getNS() const {
         return NULL;
     }
+
+    Transaction* OperationContextBerkeley::getTransaction() {
+        invariant(!"not yet implemented");
+        return NULL;
+    }
 }  // namespace mongo
