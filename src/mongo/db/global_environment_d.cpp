@@ -34,9 +34,8 @@
 #include "mongo/bson/util/atomic_int.h"
 #include "mongo/db/client.h"
 #include "mongo/db/curop.h"
-#include "mongo/db/operation_context_berkeley.h"
 #include "mongo/db/operation_context_impl.h"
-#include "mongo/db/storage/berkeley1/berkeley1_engine.h"
+#include "mongo/db/operation_context_noop.h"
 #include "mongo/scripting/engine.h"
 
 namespace mongo {
@@ -106,11 +105,7 @@ namespace mongo {
         } else if (storageGlobalParams.engine == "heap1") {
             return new OperationContextImpl();
         } else if (storageGlobalParams.engine == "berkeley1") {
-            // the globalStorageEngine variable needs to have been set
-            invariant(globalStorageEngine != NULL);
-
-            return new OperationContextBerkeley(
-                    dynamic_cast<Berkeley1Engine*>(globalStorageEngine)->environment());
+            return new OperationContextNoop();
         } else {
             log() << "unknown storage engine: " << storageGlobalParams.engine;
             return NULL;

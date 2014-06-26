@@ -30,7 +30,6 @@
 
 #include "mongo/db/structure/record_store_berkeley.h"
 
-#include "mongo/db/operation_context_berkeley.h"
 #include "mongo/db/storage/record.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 #include "mongo/unittest/unittest.h"
@@ -59,7 +58,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -82,7 +81,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 0);
             {
@@ -110,7 +109,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             {
@@ -136,7 +135,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
     
             {
@@ -164,7 +163,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             {
@@ -211,7 +210,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -239,7 +238,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -269,7 +268,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -304,7 +303,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> result = dummyStatusWith;
@@ -334,7 +333,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> insertResult = dummyStatusWith;
@@ -371,7 +370,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> insertResult = dummyStatusWith;
@@ -410,7 +409,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
@@ -495,7 +494,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
 
             StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
@@ -601,7 +600,7 @@ namespace {
         env.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore firstRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             BerkeleyRecordStore secondRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             BerkeleyRecordStore thirdRs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
@@ -642,7 +641,7 @@ namespace {
         DiskLoc* loc;
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -665,7 +664,7 @@ namespace {
         env2.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env2);
+            OperationContextNoop txn(env2);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 1);
             {
@@ -685,7 +684,7 @@ namespace {
         }
 
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 0);
         }
@@ -702,7 +701,7 @@ namespace {
 
         const int num_inserts = 1000;
         {
-            OperationContextBerkeley txn(env);
+            OperationContextNoop txn(env);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             
             {
@@ -727,7 +726,7 @@ namespace {
         env2.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env2);
+            OperationContextNoop txn(env2);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), num_inserts);
             {
@@ -752,7 +751,7 @@ namespace {
         env3.open(env_path.data(), cFlags_, 0);
 
         {
-            OperationContextBerkeley txn(env3);
+            OperationContextNoop txn(env3);
             BerkeleyRecordStore rs(txn.getEnv(), db_name.data(), false, -1, -1, NULL);
             ASSERT_EQUALS(rs.numRecords(), 2 * num_inserts);
         }
