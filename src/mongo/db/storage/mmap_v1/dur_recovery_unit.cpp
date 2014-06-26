@@ -74,14 +74,16 @@ namespace mongo {
 
         if (--_nestingLevel != 0) {
             // If we are nested, punt to outer UnitOfWork. These changes will only be rolled back
-            // when the outer UnitOfWork rolls back (which it must now do).
+            // when the outer UnitOfWork rolls back
             if (haveUncommitedChanges()) {
-                invariant(_state != MUST_COMMIT);
+                if (_state == MUST_COMMIT) {
+                    return;
+                }
                 _state = MUST_ROLLBACK;
             }
-            return;
         }
 
+        invariant(_state != MUST_COMMIT);
         rollbackChanges();
 #endif
     }
