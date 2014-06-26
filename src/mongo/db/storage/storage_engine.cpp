@@ -61,7 +61,8 @@ namespace mongo {
         }
 #endif
         else if (storageGlobalParams.engine == "berkeley1" ) {
-            globalStorageEngine = new Berkeley1Engine();
+            globalStorageEngine = new Berkeley1Engine(storageGlobalParams.directoryperdb,
+                                                      storageGlobalParams.dbpath);
         }
         else {
             log() << "unknown storage engine: " << storageGlobalParams.engine;

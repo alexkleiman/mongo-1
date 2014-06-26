@@ -59,19 +59,23 @@ namespace mongo {
     }
 
     bool Berkeley1RecoveryUnit::awaitCommit() {
-        invariant(!"awaitCommit should never be called on a Berkeley1RecoveryUnit");
+        //invariant(!"awaitCommit should never be called on a Berkeley1RecoveryUnit");
+        return true;
     }
 
     bool Berkeley1RecoveryUnit::commitIfNeeded(bool force) {
-        invariant(!"commitIfNeeded should never be called on a Berkeley1RecoveryUnit");
+        //invariant(!"commitIfNeeded should never be called on a Berkeley1RecoveryUnit");
+        return false;
     }
 
     bool Berkeley1RecoveryUnit::isCommitNeeded() const {
-        invariant(!"isCommitNeeded should never be called on a Berkeley1RecoveryUnit");
+        //invariant(!"isCommitNeeded should never be called on a Berkeley1RecoveryUnit");
+        return false;
     }
 
     void* Berkeley1RecoveryUnit::writingPtr(void* data, size_t len) {
-        invariant(!"writingPtr should never be called on a Berkeley1RecoveryUnit");
+        //invariant(!"writingPtr should never be called on a Berkeley1RecoveryUnit");
+        return data;
     }
 
     void Berkeley1RecoveryUnit::syncDataAndTruncateJournal() {

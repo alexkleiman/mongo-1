@@ -68,7 +68,8 @@ namespace mongo {
          * @return true if current files on disk are compatibile with the current version.
          *              if we return false, then an upgrade will be required
          */
-        virtual bool currentFilesCompatible( OperationContext* opCtx ) const { invariant(!"nyi"); }
+        virtual bool currentFilesCompatible( OperationContext* opCtx ) const { //TODO implement this
+            return true; }
 
         // ----
 

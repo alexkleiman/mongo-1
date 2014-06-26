@@ -31,15 +31,7 @@
 #include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
 
 #include "mongo/db/catalog/collection_options.h"
-#include "mongo/db/index/2d_access_method.h"
 #include "mongo/db/index/btree_access_method.h"
-#include "mongo/db/index/fts_access_method.h"
-#include "mongo/db/index/hash_access_method.h"
-#include "mongo/db/index/haystack_access_method.h"
-#include "mongo/db/index/index_access_method.h"
-#include "mongo/db/index/index_descriptor.h"
-#include "mongo/db/index/s2_access_method.h"
-#include "mongo/db/storage_options.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_btree_impl.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
@@ -64,10 +56,10 @@ namespace mongo {
         for (boost::filesystem::directory_iterator it(path);
                 it != boost::filesystem::directory_iterator();
               ++it) {
-            /*if (storageGlobalParams.directoryperdb) {
+            if (directoryperdb) {
                 //TODO
             }
-            else {*/
+            else {
                 string fileName = boost::filesystem::path(*it).filename().string();
 
                 if (fileName.size() < name.toString().size() + 5)
@@ -90,7 +82,7 @@ namespace mongo {
 
                 // TODO figure out if capped
                 entry->rs.reset( new BerkeleyRecordStore( env, ns ) );
-            //}
+            }
         }
     }
 
@@ -189,7 +181,27 @@ namespace mongo {
     IndexAccessMethod* Berkeley1DatabaseCatalogEntry::getIndex( OperationContext* txn,
                                                             const CollectionCatalogEntry* collection,
                                                             IndexCatalogEntry* index ) {
-        invariant(!"Indexes not yet implemented");
+
+        const Entry* entry = dynamic_cast<const Entry*>( collection );
+
+        Entry::Indexes::const_iterator i = entry->indexes.find( index->descriptor()->indexName() );
+        if ( i == entry->indexes.end() ) {
+            // index doesn't exist
+            return NULL;
+        }
+
+        if (!i->second->rs)
+            i->second->rs.reset(new BerkeleyRecordStore( _env, index->descriptor()->indexName() ));
+
+        std::auto_ptr<BtreeInterface> btree(
+            BtreeInterface::getInterface(index->headManager(),
+                                         i->second->rs.get(),
+                                         index->ordering(),
+                                         index->descriptor()->indexNamespace(),
+                                         index->descriptor()->version(),
+                                         &BtreeBasedAccessMethod::invalidateCursors));
+
+        return new BtreeAccessMethod( index, btree.release() );
     }
 
     Status Berkeley1DatabaseCatalogEntry::renameCollection( OperationContext* txn,

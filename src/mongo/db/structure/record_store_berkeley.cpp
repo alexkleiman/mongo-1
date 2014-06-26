@@ -125,7 +125,7 @@ namespace mongo {
 
         DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
-        invariant(ru != NULL);
+        //invariant(ru != NULL);
 
         invariant(db.del(ru, &key, 0) == 0);
     }
@@ -162,7 +162,7 @@ namespace mongo {
 
         DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
-        invariant(ru != NULL);
+        //invariant(ru != NULL);
 
         invariant(db.put(ru, &key, &value, DB_NOOVERWRITE) == 0);
 
@@ -172,7 +172,34 @@ namespace mongo {
     StatusWith<DiskLoc> BerkeleyRecordStore::insertRecord(OperationContext* txn,
                                                       const DocWriter* doc,
                                                       int quotaMax) {
-        invariant(!"nyi");
+        Dbt value;
+
+        const int len = doc->documentSize();
+        if (_isCapped && len > _cappedMaxSize) {
+            // We use dataSize for capped rollover and we don't want to delete everything if we know
+            // this won't fit.
+            return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                       "object to insert exceeds cappedMaxSize");
+        }
+
+        boost::shared_array<char> buf(new char[len]);
+        doc->writeDocument(buf.get());
+
+        value.set_size(len);
+        value.set_data(buf.get());
+
+        const DiskLoc loc = allocateLoc(txn);
+
+        int64_t key_id = getLocID(loc);
+        Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
+
+        DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
+                          getCurrentTransaction();
+        //invariant(ru != NULL);
+
+        invariant(db.put(ru, &key, &value, DB_NOOVERWRITE) == 0);
+
+        return StatusWith<DiskLoc>(loc);
     }
 
     StatusWith<DiskLoc> BerkeleyRecordStore::updateRecord(OperationContext* txn,
@@ -227,7 +254,6 @@ namespace mongo {
     std::vector<RecordIterator*> BerkeleyRecordStore::getManyIterators() const {
         invariant(!"nyi");
     }
-
 
     Status BerkeleyRecordStore::truncate(OperationContext* txn) {
         db.truncate(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
