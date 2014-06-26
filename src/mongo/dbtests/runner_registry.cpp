@@ -58,6 +58,12 @@ namespace RunnerRegistry {
             }
         }
 
+        ~RunnerRegistryBase() {
+            if (_ctx.get()) {
+                _ctx->commit();
+            }
+        }
+
         /**
          * Return a runner that is going over the collection in ns().
          */
