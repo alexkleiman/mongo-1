@@ -116,6 +116,7 @@ namespace repl {
         */
     void _logOpObjRS(const BSONObj& op) {
         OperationContextImpl txn;
+        WriteUnitOfWork wunit(txn.recoveryUnit());
         Lock::DBWrite lk(txn.lockState(), "local");
 
         const OpTime ts = op["ts"]._opTime();
@@ -158,6 +159,7 @@ namespace repl {
         }
 
         setNewOptime(ts);
+        wunit.commit();
     }
 
     /**
@@ -234,6 +236,7 @@ namespace repl {
                          bool *bb,
                          bool fromMigrate ) {
         Lock::DBWrite lk1(txn->lockState(), "local");
+        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         if ( strncmp(ns, "local.", 6) == 0 ) {
             if ( strncmp(ns, "local.slaves", 12) == 0 )
@@ -312,6 +315,7 @@ namespace repl {
             theReplSet->lastH = hashNew;
             ctx.getClient()->setLastOp( ts );
         }
+        wunit.commit();
 
     }
 
@@ -324,6 +328,7 @@ namespace repl {
                           bool *bb,
                           bool fromMigrate ) {
         Lock::DBWrite lk(txn->lockState(), "local");
+        WriteUnitOfWork wunit(txn->recoveryUnit());
         static BufBuilder bufbuilder(8*1024); // todo there is likely a mutex on this constructor
 
         if ( strncmp(ns, "local.", 6) == 0 ) {
@@ -372,6 +377,7 @@ namespace repl {
         checkOplogInsert( localOplogMainCollection->insertDocument( txn, &writer, false ) );
 
         ctx.getClient()->setLastOp( ts );
+        wunit.commit();
     }
 
     static void (*_logOp)(OperationContext* txn,
@@ -510,9 +516,11 @@ namespace repl {
         options.cappedSize = sz;
         options.autoIndexId = CollectionOptions::NO;
 
+        WriteUnitOfWork wunit(txn.recoveryUnit());
         invariant( ctx.db()->createCollection( &txn, ns, options ) );
         if( !rs )
             logOp( &txn, "n", "", BSONObj() );
+        wunit.commit();
 
         /* sync here so we don't get any surprising lag later when we try to sync */
         globalStorageEngine->flushAllFiles(true);

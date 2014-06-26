@@ -151,6 +151,7 @@ namespace ReplSetTests {
         static void insert( const BSONObj &o, bool god = false ) {
             OperationContextImpl txn;
             Lock::DBWrite lk(txn.lockState(), ns());
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             Client::Context ctx(ns());
             
             Database* db = ctx.db();
@@ -170,6 +171,7 @@ namespace ReplSetTests {
             b.appendOID("_id", &id);
             b.appendElements(o);
             coll->insertDocument(&txn, b.obj(), true);
+            wunit.commit();
         }
 
         BSONObj findOne( const BSONObj &query = BSONObj() ) {
@@ -187,6 +189,7 @@ namespace ReplSetTests {
             }
 
             db->dropCollection(&txn, ns());
+            c.commit();
         }
         static void setup() {
             replSettings.replSet = "foo";
@@ -319,16 +322,21 @@ namespace ReplSetTests {
         void create() {
             Client::Context c(_cappedNs);
             OperationContextImpl txn;
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             ASSERT( userCreateNS( &txn, c.db(), _cappedNs, fromjson( spec() ), false ).isOK() );
+            wunit.commit();
         }
 
         void dropCapped() {
             Client::Context c(_cappedNs);
             OperationContextImpl txn;
+            WriteUnitOfWork wunit(txn.recoveryUnit());
+
             Database* db = c.db();
             if ( db->getCollection( &txn, _cappedNs ) ) {
                 db->dropCollection( &txn, _cappedNs );
             }
+            wunit.commit();
         }
 
         BSONObj updateFail() {
@@ -363,18 +371,25 @@ namespace ReplSetTests {
         bool apply(const BSONObj& op) {
             Client::Context ctx( _cappedNs );
             OperationContextImpl txn;
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             // in an annoying twist of api, returns true on failure
-            return !applyOperation_inlock(&txn, ctx.db(), op, true);
+            if (applyOperation_inlock(&txn, ctx.db(), op, true)) {
+                return false;
+            }
+            wunit.commit();
+            return true;
         }
 
         void run() {
             OperationContextImpl txn;
-            Lock::DBWrite lk(txn.lockState(), _cappedNs);
+            Lock::DBWrite lk(txn.lockState(), _cappedNs); //  nested, object already holds lock
+            WriteUnitOfWork wunit(txn.recoveryUnit());
 
             BSONObj op = updateFail();
 
             Sync s("");
             verify(!s.shouldRetry(&txn, op));
+            wunit.commit();
         }
     };
 
@@ -394,6 +409,7 @@ namespace ReplSetTests {
 
         void insert(OperationContext* txn) {
             Client::Context ctx(cappedNs());
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Database* db = ctx.db();
             Collection* coll = db->getCollection(txn, cappedNs());
             if (!coll) {
@@ -403,6 +419,7 @@ namespace ReplSetTests {
             BSONObj o = BSON(GENOID << "x" << 456);
             DiskLoc loc = coll->insertDocument(txn, o, true).getValue();
             verify(!loc.isNull());
+            wunit.commit();
         }
     public:
         virtual ~CappedUpdate() {}
@@ -441,6 +458,7 @@ namespace ReplSetTests {
         virtual ~CappedInsert() {}
         void run() {
             OperationContextImpl txn;
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             // This will succeed, but not insert anything because they are changed to upserts
             for (int i=0; i<150; i++) {
                 insertSucceed();
@@ -451,6 +469,7 @@ namespace ReplSetTests {
             Client::Context ctx(cappedNs());
             Collection* collection = ctx.db()->getCollection( &txn, cappedNs() );
             verify(collection->getIndexCatalog()->findIdIndex());
+            wunit.commit();
         }
     };
 

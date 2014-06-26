@@ -94,12 +94,17 @@ namespace mongo {
             }
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(ns);
             
-            return runNoDirectClient( txn, ns , 
-                                      query , fields , update , 
-                                      upsert , returnNew , remove , 
-                                      result , errmsg );
+            if (!runNoDirectClient( txn, ns ,
+                                    query , fields , update ,
+                                    upsert , returnNew , remove ,
+                                    result , errmsg ) ) {
+                return false;
+            }
+            wunit.commit();
+            return true;
         }
 
         static void _appendHelper(BSONObjBuilder& result,
@@ -134,6 +139,7 @@ namespace mongo {
                                       string& errmsg) {
 
             Lock::DBWrite lk(txn->lockState(), ns);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context cx( ns );
             Collection* collection = cx.db()->getCollection( txn, ns );
 
@@ -297,7 +303,7 @@ namespace mongo {
                     
                 }
             }
-            
+            wunit.commit();
             return true;
         }
         
@@ -330,6 +336,7 @@ namespace mongo {
             }
 
             Lock::DBWrite dbXLock(txn->lockState(), dbname);
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             Client::Context ctx(ns);
 
             BSONObj out = db.findOne(ns, q, fields);
@@ -423,9 +430,9 @@ namespace mongo {
 
             result.append("value", out);
 
+            wunit.commit();
             return true;
         }
     } cmdFindAndModify;
-
 
 }

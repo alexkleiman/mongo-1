@@ -141,6 +141,7 @@ namespace mongo {
 
 
             Lock::DBWrite lk(txn->lockState(), ns.ns());
+            WriteUnitOfWork wunit(txn->recoveryUnit());
             BackgroundOperation::assertNoBgOpInProgForNs(ns.ns());
             Client::Context ctx(ns);
 
@@ -169,6 +170,7 @@ namespace mongo {
             log() << "compact " << ns << " end";
 
             IndexBuilder::restoreIndexes(indexesInProg);
+            wunit.commit();
 
             return true;
         }

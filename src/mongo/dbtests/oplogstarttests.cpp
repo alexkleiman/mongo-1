@@ -38,8 +38,8 @@ namespace OplogStartTests {
     class Base {
     public:
         Base() : _lk(_txn.lockState()),
+                 _wunit(_txn.recoveryUnit()),
                  _context(ns()) {
-
             Collection* c = _context.db()->getCollection(&_txn, ns());
             if (!c) {
                 c = _context.db()->createCollection(&_txn, ns());
@@ -49,6 +49,7 @@ namespace OplogStartTests {
 
         ~Base() {
             client()->dropCollection(ns());
+            _wunit.commit();
         }
 
     protected:
@@ -93,6 +94,7 @@ namespace OplogStartTests {
         // The order of these is important in order to ensure order of destruction
         OperationContextImpl _txn;
         Lock::GlobalWrite _lk;
+        WriteUnitOfWork _wunit;
         Client::Context _context;
 
         DBDirectClient _client;

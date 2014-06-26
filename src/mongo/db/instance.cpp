@@ -606,6 +606,7 @@ namespace mongo {
         uassertStatusOK(executor.prepare());
 
         Lock::DBWrite lk(txn->lockState(), ns.ns(), useExperimentalDocLocking);
+        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         // if this ever moves to outside of lock, need to adjust check
         // Client::Context::_finishInit
@@ -618,6 +619,7 @@ namespace mongo {
 
         // for getlasterror
         lastError.getSafe()->recordUpdate( res.existing , res.numMatched , res.upserted );
+        wunit.commit();
     }
 
     void receivedDelete(OperationContext* txn, Message& m, CurOp& op) {
@@ -646,6 +648,7 @@ namespace mongo {
         DeleteExecutor executor(&request);
         uassertStatusOK(executor.prepare());
         Lock::DBWrite lk(txn->lockState(), ns.ns());
+        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         // if this ever moves to outside of lock, need to adjust check Client::Context::_finishInit
         if ( ! broadcast && handlePossibleShardedMessage( m , 0 ) )
@@ -656,6 +659,7 @@ namespace mongo {
         long long n = executor.execute(txn, ctx.db());
         lastError.getSafe()->recordDelete( n );
         op.debug().ndeleted = n;
+        wunit.commit();
     }
 
     QueryResult* emptyMoreResult(long long);
@@ -892,6 +896,7 @@ namespace mongo {
         if ( handlePossibleShardedMessage( m , 0 ) )
             return;
 
+        WriteUnitOfWork wunit(txn->recoveryUnit());
         Client::Context ctx(ns);
 
         if (multi.size() > 1) {
@@ -902,6 +907,7 @@ namespace mongo {
             globalOpCounters.incInsertInWriteLock(1);
             op.debug().ninserted = 1;
         }
+        wunit.commit();
     }
 
     /* returns true if there is data on this server.  useful when starting replication.

@@ -203,6 +203,7 @@ namespace QuerySingleSolutionRunner {
             ASSERT_EQUALS(Runner::RUNNER_DEAD, ssr->getNext(&objOut, NULL));
 
             deregisterRunner(ssr.get());
+            ctx.commit();
         }
     };
 
@@ -233,6 +234,7 @@ namespace QuerySingleSolutionRunner {
             ASSERT_EQUALS(Runner::RUNNER_DEAD, ssr->getNext(&objOut, NULL));
 
             deregisterRunner(ssr.get());
+            ctx.commit();
         }
     };
 
@@ -298,6 +300,7 @@ namespace QuerySingleSolutionRunner {
 
             int ids[] = {3, 4, 2};
             checkIds(ids, ssr.get());
+            ctx.commit();
         }
     };
 
@@ -327,6 +330,7 @@ namespace QuerySingleSolutionRunner {
             // we should not see the moved document again.
             int ids[] = {3, 4};
             checkIds(ids, ssr.get());
+            ctx.commit();
         }
     };
 
@@ -355,6 +359,7 @@ namespace QuerySingleSolutionRunner {
                 ASSERT_EQUALS(1U, numCursors());
                 ctx.ctx().db()->getCollection( &_txn, ns() )->cursorCache()->invalidateAll(false);
                 ASSERT_EQUALS(0U, numCursors());
+                ctx.commit();
             }
         };
 
@@ -392,6 +397,7 @@ namespace QuerySingleSolutionRunner {
                 // number of cursors to return to 0.
                 ccPin.deleteUnderlying();
                 ASSERT_EQUALS(0U, numCursors());
+                ctx.commit();
             }
         };
 
@@ -405,6 +411,7 @@ namespace QuerySingleSolutionRunner {
                 {
                     Client::WriteContext ctx(&_txn, ns());
                     insert(BSON("a" << 1 << "b" << 1));
+                    ctx.commit();
                 }
 
                 {

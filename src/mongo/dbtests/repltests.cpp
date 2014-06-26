@@ -58,12 +58,14 @@ namespace ReplTests {
     protected:
         mutable OperationContextImpl _txn;
         Lock::GlobalWrite _lk;
+        WriteUnitOfWork _wunit;
 
         mutable DBDirectClient _client;
         Client::Context _context;
 
     public:
         Base() : _lk(_txn.lockState()),
+                  _wunit( _txn.recoveryUnit()),
                  _client(&_txn),
                  _context(ns()) {
 
@@ -72,6 +74,7 @@ namespace ReplTests {
             replSettings.oplogSize = 5 * 1024 * 1024;
             replSettings.master = true;
             createOplog();
+
 
             Collection* c = _context.db()->getCollection( &_txn, ns() );
             if ( ! c ) {
@@ -84,6 +87,7 @@ namespace ReplTests {
                 replSettings.master = false;
                 deleteAll( ns() );
                 deleteAll( cllNS() );
+                _wunit.commit();
             }
             catch ( ... ) {
                 FAIL( "Exception while cleaning up test" );
@@ -140,6 +144,7 @@ namespace ReplTests {
         static int opCount() {
             OperationContextImpl txn;
             Lock::GlobalWrite lk(txn.lockState());
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             Client::Context ctx( cllNS() );
 
             Database* db = ctx.db();
@@ -155,12 +160,13 @@ namespace ReplTests {
                 ++count;
             }
             delete it;
+            wunit.commit();
             return count;
         }
         static void applyAllOperations() {
             OperationContextImpl txn;
             Lock::GlobalWrite lk(txn.lockState());
-
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             vector< BSONObj > ops;
             {
                 Client::Context ctx( cllNS() );
@@ -188,12 +194,13 @@ namespace ReplTests {
                     a.applyOperation( &txn, ctx.db(), *i );
                 }
             }
+            wunit.commit();
         }
         static void printAll( const char *ns ) {
             OperationContextImpl txn;
             Lock::GlobalWrite lk(txn.lockState());
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             Client::Context ctx( ns );
-
             Database* db = ctx.db();
             Collection* coll = db->getCollection( &txn, ns );
             if ( !coll ) {
@@ -208,13 +215,14 @@ namespace ReplTests {
                 ::mongo::log() << coll->docFor(currLoc).toString() << endl;
             }
             delete it;
+            wunit.commit();
         }
         // These deletes don't get logged.
         static void deleteAll( const char *ns ) {
             OperationContextImpl txn;
             Lock::GlobalWrite lk(txn.lockState());
             Client::Context ctx( ns );
-
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             Database* db = ctx.db();
             Collection* coll = db->getCollection( &txn, ns );
             if ( !coll ) {
@@ -231,12 +239,13 @@ namespace ReplTests {
             for( vector< DiskLoc >::iterator i = toDelete.begin(); i != toDelete.end(); ++i ) {
                 coll->deleteDocument( &txn, *i, true );
             }
+            wunit.commit();
         }
         static void insert( const BSONObj &o ) {
             OperationContextImpl txn;
             Lock::GlobalWrite lk(txn.lockState());
             Client::Context ctx( ns() );
-
+            WriteUnitOfWork wunit(txn.recoveryUnit());
             Database* db = ctx.db();
             Collection* coll = db->getCollection( &txn, ns() );
             if ( !coll ) {
@@ -254,6 +263,7 @@ namespace ReplTests {
             b.appendOID( "_id", &id );
             b.appendElements( o );
             coll->insertDocument( &txn, b.obj(), true );
+            wunit.commit();
         }
         static BSONObj wid( const char *json ) {
             class BSONObjBuilder b;
