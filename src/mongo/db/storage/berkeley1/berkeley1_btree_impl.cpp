@@ -28,14 +28,14 @@
  *    it in the license file.
  */
 
-#include "mongo/db/storage/Berkeley1/Berkeley1_btree_impl.h"
+#include "mongo/db/storage/berkeley1/berkeley1_btree_impl.h"
 
 #include <string>
 
 #include <db_cxx.h>
 
-#include "mongo/db/storage/Berkeley1/Berkeley1_engine.h"
-#include "mongo/db/storage/Berkeley1/Berkeley1_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/berkeley1_engine.h"
+#include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
 namespace mongo {
 

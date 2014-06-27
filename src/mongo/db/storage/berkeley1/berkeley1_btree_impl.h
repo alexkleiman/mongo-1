@@ -29,6 +29,7 @@
  */
 
 #include "mongo/db/structure/btree/btree_interface.h"
+
 #include <db_cxx.h>
 
 #pragma once
@@ -48,17 +49,14 @@ namespace mongo {
     public:
         Berkeley1BtreeImpl( DbEnv& env, const std::string& ns, const std::string& indexName );
 
-        virtual BtreeBuilderInterface* getBulkBuilder(OperationContext* txn,
-                                                      bool dupsAllowed);
+        virtual BtreeBuilderInterface* getBulkBuilder(OperationContext* txn, bool dupsAllowed);
 
         virtual Status insert(OperationContext* txn,
                               const BSONObj& key,
                               const DiskLoc& loc,
                               bool dupsAllowed);
 
-        virtual bool unindex(OperationContext* txn,
-                             const BSONObj& key,
-                             const DiskLoc& loc);
+        virtual bool unindex(OperationContext* txn, const BSONObj& key, const DiskLoc& loc);
 
         virtual Status dupKeyCheck(const BSONObj& key, const DiskLoc& loc);
 
@@ -73,8 +71,7 @@ namespace mongo {
         virtual Status initAsEmpty(OperationContext* txn);
 
     private:
-        Berkeley1RecoveryUnit* _getRecoveryUnit( OperationContext* opCtx ) const;
-
+        Berkeley1RecoveryUnit* _getRecoveryUnit(OperationContext* opCtx) const;
 
         DbEnv& _env;
         string _ns;

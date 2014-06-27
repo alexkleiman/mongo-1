@@ -13,8 +13,8 @@ if has_option("berkeleyDB"):
             'berkeley1_engine.cpp',
             'berkeley1_recovery_unit.cpp',
             'berkeley1_database_catalog_entry.cpp',
-            'record_store_berkeley.cpp'
-            'berkeley1_btree_impl.cpp'
+            'record_store_berkeley.cpp',
+            'berkeley1_btree_impl.cpp',
             ],
         LIBDEPS= [
             '$BUILD_DIR/mongo/bson',
