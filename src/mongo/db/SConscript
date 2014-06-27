@@ -22,15 +22,6 @@ env.Library(
     ],
 )
 
-env.Library(
-    target= 'berkeley_operation_context',
-    source= [
-        'operation_context_berkeley.cpp'
-    ],
-    LIBDEPS=[
-    ],
-)
-
 env.CppUnitTest(
     target= 'field_ref_test',
     source= 'field_ref_test.cpp',
