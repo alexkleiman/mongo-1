@@ -32,8 +32,6 @@
 
 #include <string>
 
-#include "mongo/db/storage/berkeley1/mongo_bdb.h"
-
 #include "mongo/db/storage/berkeley1/berkeley1_engine.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 

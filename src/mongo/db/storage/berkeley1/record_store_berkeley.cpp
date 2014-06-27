@@ -37,10 +37,9 @@
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
-#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 
-//TODO find maximum record length
+//TODO find maximum record length FIX THIS
 #define BUFFER_SIZE 16 * 1024000
 
 namespace mongo {
