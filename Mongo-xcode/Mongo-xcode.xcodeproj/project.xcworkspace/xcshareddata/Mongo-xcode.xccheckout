@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>D07BE1FD-620C-414D-A81B-890190B7EEFA</string>
+	<key>IDESourceControlProjectName</key>
+	<string>Mongo-xcode</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>19361B51-694F-4FF3-AD40-A2AD99C7C042</key>
+		<string>https://github.com/alexkleiman/mongo-1.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>Mongo-xcode/Mongo-xcode.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>19361B51-694F-4FF3-AD40-A2AD99C7C042</key>
+		<string>../../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/alexkleiman/mongo-1.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>19361B51-694F-4FF3-AD40-A2AD99C7C042</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>19361B51-694F-4FF3-AD40-A2AD99C7C042</string>
+			<key>IDESourceControlWCCName</key>
+			<string>mongo-fork</string>
+		</dict>
+	</array>
+</dict>
+</plist>

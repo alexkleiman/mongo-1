@@ -917,7 +917,6 @@ serveronlyLibdeps = ["coreshard",
                      "db/catalog/collection_options",
                      "db/exec/working_set",
                      "db/exec/exec",
-                     'db/berkeley_operation_context',
                      "db/query/query",
                      "db/repl/network_interface_impl",
                      "db/repl/replication_executor",
@@ -926,7 +925,6 @@ serveronlyLibdeps = ["coreshard",
                      "db/repl/repl_settings",
                      "db/repl/replication_executor",
                      'db/storage/extent',
-                     'db/storage/berkeley1/storage_berkeley1',
                      'db/storage/heap1/storage_heap1',
                      'db/structure/record_store',
                      'db/structure/record_store_v1',
@@ -935,6 +933,9 @@ serveronlyLibdeps = ["coreshard",
 
 if has_option("rocksdb" ):
     serveronlyLibdeps.append( 'db/storage/rocks/storage_rocks' )
+
+if has_option("berkeleyDB"):
+    serveronlyLibdeps.append('db/storage/berkeley1/storage_berkeley1')
 
 env.Library("serveronly", serverOnlyFiles,
             LIBDEPS=serveronlyLibdeps )

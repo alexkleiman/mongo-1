@@ -1,19 +1,24 @@
 # -*- mode: python -*-
 
 Import("env")
+Import("has_option")
 
-env.Library(
-    target= 'storage_berkeley1',
-    source= [
-        'berkeley1_engine.cpp',
-        'berkeley1_recovery_unit.cpp',
-        'berkeley1_database_catalog_entry.cpp',
-        ],
-    LIBDEPS= [
-        '$BUILD_DIR/mongo/bson',
-        '$BUILD_DIR/mongo/db/catalog/collection_options',
-        '$BUILD_DIR/mongo/db/structure/record_store',
-        '$BUILD_DIR/mongo/foundation',
-        '$BUILD_DIR/mongo/db/structure/record_store_berkeley',
-        ]
-    )
+if has_option("berkeleyDB"):
+    env.Append(LIBS=["db_cxx"])
+    env.Append(CPPDEFINES=["MONGO_BERKELEYDB"])
+
+    env.Library(
+        target= 'storage_berkeley1',
+        source= [
+            'berkeley1_engine.cpp',
+            'berkeley1_recovery_unit.cpp',
+            'berkeley1_database_catalog_entry.cpp',
+            'record_store_berkeley.cpp'
+            ],
+        LIBDEPS= [
+            '$BUILD_DIR/mongo/bson',
+            '$BUILD_DIR/mongo/db/catalog/collection_options',
+            '$BUILD_DIR/mongo/db/structure/record_store',
+            '$BUILD_DIR/mongo/foundation',
+            ]
+        )

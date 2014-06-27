@@ -28,7 +28,7 @@
  *    it in the license file.
  */
 
-#include "mongo/db/structure/record_store_berkeley.h"
+#include "mongo/db/storage/berkeley1/record_store_berkeley.h"
 
 #include "mongo/db/storage/record.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"

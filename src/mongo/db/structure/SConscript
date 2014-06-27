@@ -40,15 +40,6 @@ env.Library(
         ]
     )
 
-env.Library(
-    target='record_store_berkeley',
-    source=['record_store_berkeley.cpp',
-            ],
-    LIBDEPS=[
-        'record_store'
-        ]
-    )
-
 env.CppUnitTest(
     target='record_store_v1_simple_test',
     source=['record_store_v1_simple_test.cpp',
@@ -72,7 +63,6 @@ env.CppUnitTest(
 #     source=['record_store_berkeley_test.cpp',
 #             ],
 #     LIBDEPS=[
-#         '$BUILD_DIR/mongo/db/berkeley_operation_context',
 #         'record_store_berkeley',
 #         '$BUILD_DIR/mongo/db/storage/berkeley1/storage_berkeley1',
 #         ]

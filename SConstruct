@@ -764,9 +764,6 @@ elif windows:
 
 env['STATIC_AND_SHARED_OBJECTS_ARE_THE_SAME'] = 1
 
-if has_option ( "berkeleyDB" ):
-    env.Append ( LINKFLAGS=["-ldb_cxx"] )
-
 if nix:
 
     if has_option( "distcc" ):
