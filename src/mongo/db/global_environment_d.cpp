@@ -29,7 +29,6 @@
 #include "mongo/db/global_environment_d.h"
 
 #include <set>
-#include <db_cxx.h>
 
 #include "mongo/bson/util/atomic_int.h"
 #include "mongo/db/client.h"
@@ -100,16 +99,13 @@ namespace mongo {
     }
 
     OperationContext* GlobalEnvironmentMongoD::newOpCtx() {
-        if (storageGlobalParams.engine == "mmapv1"){
-            return new OperationContextImpl();
-        } else if (storageGlobalParams.engine == "heap1") {
-            return new OperationContextImpl();
-        } else if (storageGlobalParams.engine == "berkeley1") {
+#ifdef MONGO_BERKELEYDB
+        if (storageGlobalParams.engine == "berkeley1") {
             return new OperationContextNoop();
-        } else {
-            log() << "unknown storage engine: " << storageGlobalParams.engine;
-            return NULL;
         }
+#endif
+
+        return new OperationContextImpl();
     }
 
 }  // namespace mongo
