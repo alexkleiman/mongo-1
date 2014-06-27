@@ -8,6 +8,7 @@ env.Library(
         'berkeley1_engine.cpp',
         'berkeley1_recovery_unit.cpp',
         'berkeley1_database_catalog_entry.cpp',
+        'berkeley1_btree_impl.cpp'
         ],
     LIBDEPS= [
         '$BUILD_DIR/mongo/bson',
