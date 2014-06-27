@@ -35,10 +35,9 @@
 
 #include "mongo/db/storage/berkeley1/record_store_berkeley.h"
 
-#include <db_cxx.h>
-
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 
 //TODO find maximum record length

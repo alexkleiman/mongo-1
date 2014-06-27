@@ -29,8 +29,7 @@
 
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
 
-#include <db_cxx.h>
-
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 #include "mongo/db/storage/record.h"
 
 namespace mongo {

@@ -28,12 +28,11 @@
  *    it in the license file.
  */
 
-#include "mongo/db/structure/btree/btree_interface.h"
-
-#include <db_cxx.h>
-
 #pragma once
 
+#include "mongo/db/structure/btree/btree_interface.h"
+
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 namespace mongo {
 

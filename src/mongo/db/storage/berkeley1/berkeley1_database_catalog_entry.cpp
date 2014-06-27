@@ -32,13 +32,13 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <db_cxx.h>
 
 #include "mongo/db/catalog/collection_options.h"
 #include "mongo/db/index/btree_access_method.h"
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_btree_impl.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 #include "mongo/db/storage/berkeley1/record_store_berkeley.h"
 
 

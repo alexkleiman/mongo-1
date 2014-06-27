@@ -32,11 +32,11 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <db_cxx.h>
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 namespace mongo {
 

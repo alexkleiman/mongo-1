@@ -33,12 +33,12 @@
 #include <list>
 #include <map>
 #include <string>
-#include <db_cxx.h>
 
 #include <boost/thread/mutex.hpp>
 
 #include "mongo/db/catalog/collection_catalog_entry.h"
 #include "mongo/db/catalog/database_catalog_entry.h"
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 namespace mongo {
 
