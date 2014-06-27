@@ -183,27 +183,12 @@ namespace mongo {
     IndexAccessMethod* Berkeley1DatabaseCatalogEntry::getIndex( OperationContext* txn,
                                                             const CollectionCatalogEntry* collection,
                                                             IndexCatalogEntry* index ) {
+        const IndexDescriptor* desc = index->descriptor();
 
-        const Entry* entry = dynamic_cast<const Entry*>( collection );
+        std::auto_ptr<Berkeley1BtreeImpl> raw( new Berkeley1BtreeImpl( _env, collection->ns().ns(),
+                                                                    desc->indexName() ) );
 
-        Entry::Indexes::const_iterator i = entry->indexes.find( index->descriptor()->indexName() );
-        if ( i == entry->indexes.end() ) {
-            // index doesn't exist
-            return NULL;
-        }
-
-        if (!i->second->rs)
-            i->second->rs.reset(new BerkeleyRecordStore( _env, index->descriptor()->indexName() ));
-
-        std::auto_ptr<BtreeInterface> btree(
-            BtreeInterface::getInterface(index->headManager(),
-                                         i->second->rs.get(),
-                                         index->ordering(),
-                                         index->descriptor()->indexNamespace(),
-                                         index->descriptor()->version(),
-                                         &BtreeBasedAccessMethod::invalidateCursors));
-
-        return new BtreeAccessMethod( index, btree.release() );
+        return new BtreeAccessMethod( index, raw.release() );
     }
 
     Status Berkeley1DatabaseCatalogEntry::renameCollection( OperationContext* txn,

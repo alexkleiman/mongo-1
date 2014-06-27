@@ -1,3 +1,5 @@
+// Berkeley1_btree_impl.h
+
 /**
  *    Copyright (C) 2014 MongoDB Inc.
  *
@@ -26,19 +28,57 @@
  *    it in the license file.
  */
 
-#include <boost/shared_ptr.hpp>
-
 #include "mongo/db/structure/btree/btree_interface.h"
+#include <db_cxx.h>
 
 #pragma once
 
+
 namespace mongo {
-    class IndexCatalogEntry;
 
-    /**
-     * Caller takes ownership.
-     * All permanent data will be stored and fetch from dataInOut.
-     */
-    BtreeInterface* getHeap1BtreeImpl(IndexCatalogEntry* info, boost::shared_ptr<void>* dataInOut);
+    class Berkeley1RecoveryUnit;
 
-}  // namespace mongo
+    class Berkeley1BtreeBuilderImpl : public BtreeBuilderInterface {
+    public:
+        virtual Status addKey(const BSONObj& key, const DiskLoc& loc) = 0;
+        virtual unsigned long long commit(bool mayInterrupt) = 0;
+    };
+
+    class Berkeley1BtreeImpl : public BtreeInterface {
+    public:
+        Berkeley1BtreeImpl( DbEnv& env, const std::string& ns, const std::string& indexName );
+
+        virtual BtreeBuilderInterface* getBulkBuilder(OperationContext* txn,
+                                                      bool dupsAllowed);
+
+        virtual Status insert(OperationContext* txn,
+                              const BSONObj& key,
+                              const DiskLoc& loc,
+                              bool dupsAllowed);
+
+        virtual bool unindex(OperationContext* txn,
+                             const BSONObj& key,
+                             const DiskLoc& loc);
+
+        virtual Status dupKeyCheck(const BSONObj& key, const DiskLoc& loc);
+
+        virtual void fullValidate(long long* numKeysOut);
+
+        virtual bool isEmpty();
+
+        virtual Status touch(OperationContext* txn) const;
+
+        virtual Cursor* newCursor(int direction) const;
+
+        virtual Status initAsEmpty(OperationContext* txn);
+
+    private:
+        Berkeley1RecoveryUnit* _getRecoveryUnit( OperationContext* opCtx ) const;
+
+
+        DbEnv& _env;
+        string _ns;
+        string _indexName;
+        mutable Db db;
+    };
+}
