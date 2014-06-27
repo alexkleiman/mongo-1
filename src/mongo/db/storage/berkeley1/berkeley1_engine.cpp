@@ -32,7 +32,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <db_cxx.h>
+//#include <db_cxx.h>
 
 #include "mongo/db/operation_context.h"
 #include "mongo/db/storage/berkeley1/berkeley1_database_catalog_entry.h"
