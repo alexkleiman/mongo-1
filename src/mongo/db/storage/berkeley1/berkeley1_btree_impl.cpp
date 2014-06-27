@@ -32,7 +32,7 @@
 
 #include <string>
 
-#include <db_cxx.h>
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 
 #include "mongo/db/storage/berkeley1/berkeley1_engine.h"
 #include "mongo/db/storage/berkeley1/berkeley1_recovery_unit.h"
@@ -176,7 +176,7 @@ namespace mongo {
                 if ( _cached )
                     return;
                 _cached = true;
-                char* data;
+                char* data = NULL;
                 Dbt key(data, 0);
                 key.set_flags(DB_DBT_MALLOC);
                 Dbt loc(reinterpret_cast<char *>(&_cachedLoc), sizeof(DiskLoc));
@@ -308,3 +308,4 @@ namespace mongo {
     }
 
 }
+

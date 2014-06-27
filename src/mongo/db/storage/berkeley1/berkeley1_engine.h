@@ -30,9 +30,9 @@
 
 #pragma once
 
-#include <db_cxx.h>
 #include <string>
 
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 #include "mongo/db/storage/storage_engine.h"
 
 namespace mongo {

@@ -29,10 +29,10 @@
 #pragma once
 
 #include <string>
-#include <db_cxx.h>
 #include <stack>
 
 #include "mongo/db/diskloc.h"
+#include "mongo/db/storage/berkeley1/mongo_bdb.h"
 #include "mongo/db/storage/record.h"
 #include "mongo/db/storage/recovery_unit.h"
 #include "mongo/platform/compiler.h"
