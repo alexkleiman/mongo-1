@@ -42,8 +42,23 @@ namespace mongo {
         public:
             Berkeley1Cursor( Db& db, bool direction )
                 : _cursor( 0 ), _direction( direction ), _cached( false ), _isValid( false ) {
-                Dbc* cursorrp = _cursor;
-                db.cursor(NULL, &cursorrp, 0);
+                //Dbc* cursorrp = _cursor;
+                db.cursor(NULL, &_cursor, 0);
+
+                Dbt key, value;
+
+                if ( _forward() ) {
+                    if (_cursor->get(&key, &value, DB_FIRST) == 0)
+                        _isValid = true;
+                    else
+                        _isValid = false;
+                }
+                else {
+                    if (_cursor->get(&key, &value, DB_LAST) == 0)
+                        _isValid = true;
+                    else
+                        _isValid = false;
+                }
             }
 
             virtual ~Berkeley1Cursor() {

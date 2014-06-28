@@ -243,7 +243,11 @@ namespace mongo {
     RecordIterator* BerkeleyRecordStore::getIterator(const DiskLoc& start,
                                                  bool tailable,
                                                  const CollectionScanParams::Direction& dir) const {
-        invariant(!"nyi");
+        // TODO what does it mean to pass in a DiskLoc, and what is tailable?
+        invariant( start == DiskLoc() );
+        invariant( !tailable );
+
+        return new Iterator( this, dir );
     }
 
     RecordIterator* BerkeleyRecordStore::getIteratorForRepair() const {
@@ -372,93 +376,89 @@ namespace mongo {
         return num_records;
     }
 
+    // --------
 
-    //
-    // Forward Iterator
-    //
+    BerkeleyRecordStore::Iterator::Iterator( const BerkeleyRecordStore* rs,
+                                          const CollectionScanParams::Direction& dir )
+        : _rs( rs ),
+          _dir( dir ),
+          _cursor( 0 ), 
+          _isValid( false ) {
+        //Dbc* cursorrp = _cursor;
+        const Db* db = &(rs->db);
+        const_cast<Db*>(db)->cursor(NULL, &_cursor, 0);
 
-    BerkeleyRecordIterator::BerkeleyRecordIterator(const BerkeleyRecordStore::Records& records,
-                                           const BerkeleyRecordStore& rs,
-                                           DiskLoc start,
-                                           bool tailable)
-            : _tailable(tailable),
-              _killedByInvalidate(false),
-              _records(records),
-              _rs(rs) {
-        if (start.isNull()) {
-            _it = _records.begin();
+        Dbt key, value;
+
+        if ( _forward() ) {
+            if (_cursor->get(&key, &value, DB_FIRST) == 0)
+                _isValid = true;
         }
         else {
-            _it = _records.find(start);
-            invariant(_it != _records.end());
+            if (_cursor->get(&key, &value, DB_LAST) == 0)
+                _isValid = true;
         }
     }
 
-    bool BerkeleyRecordIterator::isEOF() {
-        invariant(!"nyi");
+    void BerkeleyRecordStore::Iterator::_checkStatus() {
+        // todo: Fix me
+        invariant( _isValid );
     }
 
-    DiskLoc BerkeleyRecordIterator::curr() {
-        invariant(!"nyi");
+    bool BerkeleyRecordStore::Iterator::isEOF() {
+        return _isValid;
     }
 
-    DiskLoc BerkeleyRecordIterator::getNext() {
-        invariant(!"nyi");
+    DiskLoc BerkeleyRecordStore::Iterator::curr() {
+        if ( !_isValid )
+            return DiskLoc();
+
+        DiskLoc loc;
+        Dbt key(reinterpret_cast<DiskLoc*>(&loc), sizeof(DiskLoc));
+        key.set_flags(DB_DBT_USERMEM);
+        Dbt value;
+        invariant(_cursor->get(&key, &value, DB_CURRENT) == 0);
+        return loc;
     }
 
-    void BerkeleyRecordIterator::invalidate(const DiskLoc& loc) {
-        invariant(!"nyi");
+    DiskLoc BerkeleyRecordStore::Iterator::getNext() {
+        DiskLoc toReturn = curr();
+
+        Dbt key, value;
+
+        if ( _forward() ) {
+            if (_cursor->get(&key, &value, DB_FIRST) == DB_NOTFOUND)
+                _isValid = false;
+        }
+        else {
+            if (_cursor->get(&key, &value, DB_LAST) == DB_NOTFOUND)
+                _isValid = false;
+        }
+
+        return toReturn;
     }
 
-    void BerkeleyRecordIterator::prepareToYield() {
-        invariant(!"nyi");
+    // what exactly is this supposed to do?
+    void BerkeleyRecordStore::Iterator::invalidate(const DiskLoc& dl) {
+        _cursor = NULL;
+        _isValid = false;
     }
 
-    bool BerkeleyRecordIterator::recoverFromYield() {
-        invariant(!"nyi");
+    void BerkeleyRecordStore::Iterator::prepareToYield() {
+        // XXX: ???
     }
 
-    const Record* BerkeleyRecordIterator::recordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+    bool BerkeleyRecordStore::Iterator::recoverFromYield() {
+        // XXX: ???
+        return true;
     }
 
-    //
-    // Reverse Iterator
-    //
-
-    BerkeleyRecordReverseIterator::BerkeleyRecordReverseIterator(const BerkeleyRecordStore::Records& records,
-                                                         const BerkeleyRecordStore& rs,
-                                                         DiskLoc start)
-            : _killedByInvalidate(false),
-              _records(records),
-              _rs(rs) {
-        invariant(!"nyi");
+    RecordData BerkeleyRecordStore::Iterator::dataFor( const DiskLoc& loc ) const {
+        // XXX: use the iterator value
+        return _rs->dataFor( loc );
     }
 
-    bool BerkeleyRecordReverseIterator::isEOF() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc BerkeleyRecordReverseIterator::curr() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc BerkeleyRecordReverseIterator::getNext() {
-        invariant(!"nyi");
-    }
-
-    void BerkeleyRecordReverseIterator::invalidate(const DiskLoc& loc) {
-        invariant(!"nyi");
-    }
-
-    void BerkeleyRecordReverseIterator::prepareToYield() {
-    }
-
-    bool BerkeleyRecordReverseIterator::recoverFromYield() {
-        invariant(!"nyi");
-    }
-
-    const Record* BerkeleyRecordReverseIterator::recordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+    bool BerkeleyRecordStore::Iterator::_forward() const {
+        return _dir == CollectionScanParams::FORWARD;
     }
 } // namespace mongo

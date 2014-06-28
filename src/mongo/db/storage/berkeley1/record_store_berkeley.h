@@ -147,6 +147,28 @@ namespace mongo {
        
 
     private:
+        class Iterator : public RecordIterator {
+        public:
+            Iterator( const BerkeleyRecordStore* rs, const CollectionScanParams::Direction& dir );
+
+            virtual bool isEOF();
+            virtual DiskLoc curr();
+            virtual DiskLoc getNext();
+            virtual void invalidate(const DiskLoc& dl);
+            virtual void prepareToYield();
+            virtual bool recoverFromYield();
+            virtual RecordData dataFor( const DiskLoc& loc ) const;
+
+        private:
+            bool _forward() const;
+            void _checkStatus();
+
+            const BerkeleyRecordStore* _rs;
+            CollectionScanParams::Direction _dir;
+            Dbc* _cursor;
+            bool _isValid;
+        };
+
         DiskLoc allocateLoc(OperationContext* txn);
         bool cappedAndNeedDelete() const;
         void cappedDeleteAsNeeded(OperationContext* txn);
@@ -162,64 +184,4 @@ namespace mongo {
         DbEnv& _env;
         boost::shared_array<char> readBuffer;
     };
-
-    class BerkeleyRecordIterator : public RecordIterator {
-    public:
-        BerkeleyRecordIterator(const BerkeleyRecordStore::Records& records,
-                           const BerkeleyRecordStore& rs,
-                           DiskLoc start = DiskLoc(),
-                           bool tailable = false);
-
-        virtual bool isEOF();
-
-        virtual DiskLoc curr();
-
-        virtual DiskLoc getNext();
-
-        virtual void invalidate(const DiskLoc& dl);
-
-        virtual void prepareToYield();
-
-        virtual bool recoverFromYield();
-
-        virtual const Record* recordFor( const DiskLoc& loc ) const;
-
-    private:
-        BerkeleyRecordStore::Records::const_iterator _it;
-        bool _tailable;
-        DiskLoc _lastLoc; // only for restarting tailable
-        bool _killedByInvalidate;
-
-        const BerkeleyRecordStore::Records& _records;
-        const BerkeleyRecordStore& _rs;
-    };
-
-    class BerkeleyRecordReverseIterator : public RecordIterator {
-    public:
-        BerkeleyRecordReverseIterator(const BerkeleyRecordStore::Records& records,
-                                  const BerkeleyRecordStore& rs,
-                                  DiskLoc start = DiskLoc());
-
-        virtual bool isEOF();
-
-        virtual DiskLoc curr();
-
-        virtual DiskLoc getNext();
-
-        virtual void invalidate(const DiskLoc& dl);
-
-        virtual void prepareToYield();
-
-        virtual bool recoverFromYield();
-
-        virtual const Record* recordFor( const DiskLoc& loc ) const;
-
-    private:
-        BerkeleyRecordStore::Records::const_reverse_iterator _it;
-        bool _killedByInvalidate;
-
-        const BerkeleyRecordStore::Records& _records;
-        const BerkeleyRecordStore& _rs;
-    };
-
 } // namespace mongo
