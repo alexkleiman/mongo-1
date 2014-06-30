@@ -93,6 +93,22 @@ namespace mongo {
           }
         // Initialize Read Buffer
         readBuffer = boost::shared_array<char>(new char[BUFFER_SIZE]);
+
+        // insert the first record into the database, which represents the most recently used id
+        DbTxn* transaction = NULL;
+        _env.txn_begin(NULL, &transaction, 0);
+        
+        char key_data = '\0';
+        uint64_t value_data = 0;
+
+        Dbt key(&key_data, sizeof(char));
+        Dbt value(&value_data, sizeof(int64_t));
+
+        value.set_flags(DB_DBT_USERMEM);
+        value.set_ulen(sizeof(int64_t));
+
+        invariant(db.put(transaction, &key, &value, 0) == 0);
+        transaction->commit(0);
     }
 
     BerkeleyRecordStore::~BerkeleyRecordStore() {
@@ -112,14 +128,21 @@ namespace mongo {
         value.set_flags(DB_DBT_USERMEM);
         value.set_ulen(BUFFER_SIZE);
 
-        invariant(const_cast<Db&>(db).get(NULL, &key, &value, DB_READ_UNCOMMITTED) == 0);
+        int getResult = const_cast<Db&>(db).get(NULL, &key, &value, DB_READ_UNCOMMITTED);
 
-        int size = value.get_size();
+        if (getResult == 0) {
+            int size = value.get_size();
 
-        char* data = new char[size];
-        memcpy(data, readBuffer.get(), size);
+            char* data = new char[size];
+            memcpy(data, readBuffer.get(), size);
 
-        return RecordData(data, size, boost::shared_array<char>(data));
+            return RecordData(data, size, boost::shared_array<char>(data));
+        } else if (getResult == DB_NOTFOUND) {
+            return RecordData(NULL, 0);
+        } else {
+            log() << "berkeleyDB get() failed with error number: " << getResult;
+            invariant(!"berkeleyDB get() failed");
+        }
     }
 
     void BerkeleyRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc)  {
@@ -330,9 +353,8 @@ namespace mongo {
         DbTxn* transaction = NULL;
         _env.txn_begin(reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction(), &transaction, 0);
-        if (const_cast<Db&>(db).get(transaction, &key, &value, DB_READ_UNCOMMITTED) == DB_NOTFOUND) {
-          id = 0;
-        }
+        
+        invariant((const_cast<Db&>(db).get(transaction, &key, &value, DB_READ_UNCOMMITTED) != DB_NOTFOUND));
 
         new_id = id + 1;
         Dbt new_value(reinterpret_cast<char*>(&new_id), sizeof(int64_t));
@@ -391,10 +413,13 @@ namespace mongo {
         Dbt key, value;
 
         if ( _forward() ) {
-            if (_cursor->get(&key, &value, DB_FIRST) == 0)
-                _isValid = true;
+            if (_cursor->get(&key, &value, DB_FIRST) == 0){
+                // advance past the first item, which just stores 
+                _isValid = (_cursor->get(&key, &value, DB_NEXT) == 0);
+            }
         }
         else {
+            invariant(!"not yet implemented. Figure out how to deal with nextId being in database");
             if (_cursor->get(&key, &value, DB_LAST) == 0)
                 _isValid = true;
         }
@@ -406,7 +431,7 @@ namespace mongo {
     }
 
     bool BerkeleyRecordStore::Iterator::isEOF() {
-        return _isValid;
+        return !_isValid;
     }
 
     DiskLoc BerkeleyRecordStore::Iterator::curr() {
@@ -414,9 +439,13 @@ namespace mongo {
             return DiskLoc();
 
         DiskLoc loc;
-        Dbt key(reinterpret_cast<DiskLoc*>(&loc), sizeof(DiskLoc));
+
+        Dbt key(&loc, sizeof(DiskLoc));
         key.set_flags(DB_DBT_USERMEM);
+        key.set_ulen(key.get_size());
+
         Dbt value;
+
         invariant(_cursor->get(&key, &value, DB_CURRENT) == 0);
         return loc;
     }
@@ -427,11 +456,11 @@ namespace mongo {
         Dbt key, value;
 
         if ( _forward() ) {
-            if (_cursor->get(&key, &value, DB_FIRST) == DB_NOTFOUND)
+            if (_cursor->get(&key, &value, DB_NEXT) == DB_NOTFOUND)
                 _isValid = false;
         }
         else {
-            if (_cursor->get(&key, &value, DB_LAST) == DB_NOTFOUND)
+            if (_cursor->get(&key, &value, DB_PREV) == DB_NOTFOUND)
                 _isValid = false;
         }
 

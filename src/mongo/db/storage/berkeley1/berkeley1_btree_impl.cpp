@@ -68,7 +68,7 @@ namespace mongo {
             int getDirection() const { return _direction; }
 
             bool isEOF() const {
-                return _isValid;
+                return !_isValid;
             }
 
             /**
