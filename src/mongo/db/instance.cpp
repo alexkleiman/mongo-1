@@ -1085,6 +1085,9 @@ namespace {
             dur::journalCleanup(true);
         }
 
+        log() << "shutdown: closing storage engine..." << endl;
+        delete globalStorageEngine;
+
 #if !defined(__sunos__)
         if ( lockFile ) {
             log() << "shutdown: removing fs lock..." << endl;

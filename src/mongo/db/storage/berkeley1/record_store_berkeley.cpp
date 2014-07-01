@@ -99,7 +99,7 @@ namespace mongo {
         _env.txn_begin(NULL, &transaction, 0);
         
         char key_data = '\0';
-        uint64_t value_data = 0;
+        uint64_t value_data = 1;
 
         Dbt key(&key_data, sizeof(char));
         Dbt value(&value_data, sizeof(int64_t));
@@ -107,7 +107,7 @@ namespace mongo {
         value.set_flags(DB_DBT_USERMEM);
         value.set_ulen(sizeof(int64_t));
 
-        invariant(db.put(transaction, &key, &value, 0) == 0);
+        db.put(transaction, &key, &value, DB_NOOVERWRITE);
         transaction->commit(0);
     }
 
@@ -183,7 +183,6 @@ namespace mongo {
         int64_t key_id = getLocID(loc);
         Dbt key(reinterpret_cast<char *>(&key_id), sizeof(int64_t));
 
-
         DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
         //invariant(ru != NULL);
@@ -249,7 +248,7 @@ namespace mongo {
         DbTxn* ru = reinterpret_cast<Berkeley1RecoveryUnit*>(txn->recoveryUnit())->
                           getCurrentTransaction();
 
-        invariant(ru != NULL);         
+        //invariant(ru != NULL);         
 
         invariant(db.put(ru, &key, &value, 0) == 0);
 
@@ -342,7 +341,7 @@ namespace mongo {
     }
 
     DiskLoc BerkeleyRecordStore::allocateLoc(OperationContext* txn) {
-        char id_key = 0;
+        char id_key = '\0';
         int64_t id = 0, new_id = 0;
 
         Dbt key(reinterpret_cast<char*>(&id_key), sizeof(char));
@@ -359,8 +358,12 @@ namespace mongo {
         new_id = id + 1;
         Dbt new_value(reinterpret_cast<char*>(&new_id), sizeof(int64_t));
 
+
+        log() << "id = " << id << std::endl; 
+
         invariant(db.put(transaction, &key, &new_value, 0) == 0);
         transaction->commit(0);
+
 
         // This is a hack, but both the high and low order bits of DiskLoc offset must be 0, and the
         // file must fit in 23 bits. This gives us a total of 30 + 23 == 53 bits.
@@ -414,7 +417,7 @@ namespace mongo {
 
         if ( _forward() ) {
             if (_cursor->get(&key, &value, DB_FIRST) == 0){
-                // advance past the first item, which just stores 
+                // advance past the first item, which just stores nextid
                 _isValid = (_cursor->get(&key, &value, DB_NEXT) == 0);
             }
         }
