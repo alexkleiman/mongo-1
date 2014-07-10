@@ -3,6 +3,7 @@ Import("has_option")
 
 if has_option("twitter"):
 
+    
     env.Library(
         target= 'storage_twitter_base',
         source= [
@@ -18,8 +19,10 @@ if has_option("twitter"):
             '$BUILD_DIR/mongo/db/catalog/collection_options',
             '$BUILD_DIR/mongo/db/structure/record_store',
             '$BUILD_DIR/mongo/foundation',
-            '$BUILD_DIR/third_party/shim_snappy',
+            '$BUILD_DIR/mongo/db/storage/heap1/storage_heap1',
+            '$BUILD_DIR/mongo/db/structure/record_store',
             ],
+        SYSLIBDEPS=["c++", "twitcurl", "curl"] 
         )
 
     env.Library(

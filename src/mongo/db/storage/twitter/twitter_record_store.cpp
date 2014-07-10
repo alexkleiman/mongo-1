@@ -32,6 +32,7 @@
 #include "mongo/db/storage/twitter/twitter_record_store.h"
 
 #include "mongo/db/operation_context_noop.h"
+#include <twitcurl/twitcurl.h>
 
 namespace mongo {
 
@@ -39,40 +40,66 @@ namespace mongo {
     // RecordStore
     //
 
-    TwitterRecordStore::TwitterRecordStore(const StringData& ns,
+    TwitterRecordStore::TwitterRecordStore(TwitterCUD& tcud, HeapRecordStore* hrs,
+                                      const StringData& ns,
                                      bool isCapped,
                                      int64_t cappedMaxSize,
                                      int64_t cappedMaxDocs,
                                      CappedDocumentDeleteCallback* cappedDeleteCallback)
-                                     : RecordStore(ns) {
-        invariant(!"nyi");
+                                     : RecordStore(ns),
+                                     _hrs(hrs),
+                                     _tcud(tcud) {
     }
 
     const char* TwitterRecordStore::name() const { return "twitter"; }
 
     RecordData TwitterRecordStore::dataFor( const DiskLoc& loc ) const {
-        invariant(!"nyi");
-    }
-
-    TwitterRecordStore::TwitterRecord* TwitterRecordStore::recordFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+        return _hrs->dataFor(loc);
     }
 
     void TwitterRecordStore::deleteRecord(OperationContext* txn, const DiskLoc& loc) {
-        invariant(!"nyi");
+        if (_tcud.remove(loc, _ns))
+          _hrs->deleteRecord(txn, loc);
     }
 
     StatusWith<DiskLoc> TwitterRecordStore::insertRecord(OperationContext* txn,
                                                       const char* data,
                                                       int len,
                                                       bool enforceQuota) {
-        invariant(!"nyi");
+        BSONObj obj(data);
+
+        StatusWith<DiskLoc> loc = _hrs->insertRecord(txn, data, len, enforceQuota);
+        if (!loc.isOK())
+            return loc;
+
+        if (_tcud.insert(obj, loc.getValue(), _ns)) {
+            return loc;
+        }
+
+        _hrs->deleteRecord(txn, loc.getValue());
+        return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                   "Twitter Reject");
     }
 
     StatusWith<DiskLoc> TwitterRecordStore::insertRecord(OperationContext* txn,
                                                       const DocWriter* doc,
                                                       bool enforceQuota) {
-        invariant(!"nyi");
+        boost::shared_array<char> buf(new char[doc->documentSize()]);
+        doc->writeDocument(buf.get());
+
+        BSONObj obj(buf.get());
+
+        StatusWith<DiskLoc> loc = _hrs->insertRecord(txn, doc, enforceQuota);
+        if (!loc.isOK())
+            return loc;
+
+        if (_tcud.insert(obj, loc.getValue(), _ns)) {
+            return loc;
+        }
+
+        _hrs->deleteRecord(txn, loc.getValue());
+        return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                   "Twitter Reject");
     }
 
     StatusWith<DiskLoc> TwitterRecordStore::updateRecord(OperationContext* txn,
@@ -81,50 +108,79 @@ namespace mongo {
                                                       int len,
                                                       bool enforceQuota,
                                                       UpdateMoveNotifier* notifier ) {
-        invariant(!"nyi");
+        BSONObj obj(data);
+        if (_tcud.insert(obj, oldLocation, _ns))
+            // this assumes heap never changes DiskLoc
+            return _hrs->updateRecord(txn, oldLocation, data, len, enforceQuota, notifier );
+
+        return StatusWith<DiskLoc>(ErrorCodes::BadValue,
+                                   "Twitter Reject");
     }
 
     Status TwitterRecordStore::updateWithDamages( OperationContext* txn,
                                                const DiskLoc& loc,
                                                const char* damangeSource,
                                                const mutablebson::DamageVector& damages ) {
-        invariant(!"nyi");
+        RecordData oldData = _hrs->dataFor(loc);
+        boost::shared_array<char> save(new char[oldData.size()]);
+        memcpy(save.get(), oldData.data(), oldData.size());
+
+        Status s = _hrs->updateWithDamages( txn, loc, damangeSource, damages );
+        if (!s.isOK())
+            return s;
+
+        RecordData data = _hrs->dataFor(loc);
+
+        BSONObj obj(data.data());
+
+        if (_tcud.insert(obj, loc, _ns)) {
+            return s;
+        }
+
+        _hrs->updateRecord(txn, loc, save.get(), oldData.size(), false, NULL );
+        return Status(ErrorCodes::BadValue,
+                                   "Twitter Reject");
+
     }
 
     RecordIterator* TwitterRecordStore::getIterator(OperationContext* txn,
                                                  const DiskLoc& start,
                                                  bool tailable,
                                                  const CollectionScanParams::Direction& dir) const {
-        invariant(!"nyi");
+        return _hrs->getIterator(txn, start, tailable, dir);
     }
 
     RecordIterator* TwitterRecordStore::getIteratorForRepair(OperationContext* txn) const {
-        invariant(!"nyi");
+        return _hrs->getIteratorForRepair(txn);
     }
 
     std::vector<RecordIterator*> TwitterRecordStore::getManyIterators(OperationContext* txn) const {
-        invariant(!"nyi");
+        return _hrs->getManyIterators(txn);
     }
 
     Status TwitterRecordStore::truncate(OperationContext* txn) {
-        invariant(!"nyi");
+        if (_tcud.custom("truncate", _ns))
+            return _hrs->truncate(txn);
+        else 
+            return Status(ErrorCodes::BadValue,
+                                   "Twitter Reject");
     }
 
     void TwitterRecordStore::temp_cappedTruncateAfter(OperationContext* txn,
                                                    DiskLoc end,
                                                    bool inclusive) {
-        invariant(!"nyi");
+        // Noop
     }
 
     bool TwitterRecordStore::compactSupported() const {
-        invariant(!"nyi");
+        return false;
     }
 
     Status TwitterRecordStore::compact(OperationContext* txn,
                                     RecordStoreCompactAdaptor* adaptor,
                                     const CompactOptions* options,
                                     CompactStats* stats) {
-        invariant(!"nyi");
+        return Status::OK();
     }
 
     Status TwitterRecordStore::validate(OperationContext* txn,
@@ -133,111 +189,32 @@ namespace mongo {
                                      ValidateAdaptor* adaptor,
                                      ValidateResults* results,
                                      BSONObjBuilder* output) const {
-        invariant(!"nyi");
+        return Status::OK();
     }
     
     void TwitterRecordStore::appendCustomStats( OperationContext* txn,
                                              BSONObjBuilder* result,
                                              double scale ) const {
-        invariant(!"nyi");
+        // noop
     }
 
     Status TwitterRecordStore::touch(OperationContext* txn, BSONObjBuilder* output) const {
-        invariant(!"nyi");
+        // noop
+      return Status::OK();
     }
     
     Status TwitterRecordStore::setCustomOption(
                 OperationContext* txn, const BSONElement& option, BSONObjBuilder* info) {
-        invariant(!"setCustomOption not yet implemented");
+        return Status::OK();
     }
 
     void TwitterRecordStore::increaseStorageSize(OperationContext* txn,  int size, bool enforceQuota) {
-        // unclear what this would mean for this class. For now, just error if called.
-        invariant(!"increaseStorageSize not yet implemented");
+        // noop
     }
 
     int64_t TwitterRecordStore::storageSize(OperationContext* txn,
                                          BSONObjBuilder* extraInfo,
                                          int infoLevel) const {
-        invariant(!"nyi");
-    }
-
-    //
-    // Forward Iterator
-    //
-
-    TwitterRecordIterator::TwitterRecordIterator(OperationContext* txn,
-                                           const TwitterRecordStore::Records& records,
-                                           const TwitterRecordStore& rs,
-                                           DiskLoc start,
-                                           bool tailable) {
-        invariant(!"nyi");
-    }
-
-    bool TwitterRecordIterator::isEOF() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc TwitterRecordIterator::curr() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc TwitterRecordIterator::getNext() {
-        invariant(!"nyi");
-    }
-
-    void TwitterRecordIterator::invalidate(const DiskLoc& loc) {
-        invariant(!"nyi");
-    }
-
-    void TwitterRecordIterator::prepareToYield() {
-        invariant(!"nyi");
-    }
-
-    bool TwitterRecordIterator::recoverFromYield() {
-        invariant(!"nyi");
-    }
-
-    RecordData TwitterRecordIterator::dataFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
-    }
-
-    //
-    // Reverse Iterator
-    //
-
-    TwitterRecordReverseIterator::TwitterRecordReverseIterator(OperationContext* txn,
-                                                         const TwitterRecordStore::Records& records,
-                                                         const TwitterRecordStore& rs,
-                                                         DiskLoc start) {
-        invariant(!"nyi");
-    }
-
-    bool TwitterRecordReverseIterator::isEOF() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc TwitterRecordReverseIterator::curr() {
-        invariant(!"nyi");
-    }
-
-    DiskLoc TwitterRecordReverseIterator::getNext() {
-        invariant(!"nyi");
-    }
-
-    void TwitterRecordReverseIterator::invalidate(const DiskLoc& loc) {
-        invariant(!"nyi");
-    }
-
-    void TwitterRecordReverseIterator::prepareToYield() {
-        invariant(!"nyi");
-    }
-
-    bool TwitterRecordReverseIterator::recoverFromYield() {
-        invariant(!"nyi");
-    }
-
-    RecordData TwitterRecordReverseIterator::dataFor(const DiskLoc& loc) const {
-        invariant(!"nyi");
+        return _hrs->storageSize(txn, extraInfo, infoLevel);
     }
 } // namespace mongo
