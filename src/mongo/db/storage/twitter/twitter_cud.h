@@ -33,12 +33,21 @@
 #include "mongo/bson/bsonobj.h"
 #include "mongo/db/diskloc.h"
 
+#include <twitcurl/twitcurl.h>
+
 namespace mongo {
 
     class TwitterCUD {
+
     public:
-        static void insert(BSONObj obj, DiskLoc loc, string ns);
-        static void remove(BSONObj obj, DiskLoc loc, string ns);
+    	TwitterCUD(string username, string password);
+        bool insert(BSONObj obj, DiskLoc loc, string ns);
+        bool remove(DiskLoc loc, string ns);
+        bool custom(string s, string ns);
+
+    private:
+    	string _toTweetString(BSONObj obj, DiskLoc loc, string ns);
+    	twitCurl t;
     };
 
 } // namespace mongo

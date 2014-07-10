@@ -35,6 +35,8 @@
 
 #include "mongo/db/structure/capped_callback.h"
 #include "mongo/db/structure/record_store.h"
+#include "mongo/db/structure/record_store_heap.h"
+#include "mongo/db/storage/twitter/twitter_cud.h"
 
 namespace mongo {
     class TwitterRecordIterator;
@@ -46,7 +48,9 @@ namespace mongo {
      */
     class TwitterRecordStore : public RecordStore {
     public:
-        explicit TwitterRecordStore(const StringData& ns,
+        explicit TwitterRecordStore(TwitterCUD& tcud,
+                                 HeapRecordStore* hrs,
+                                 const StringData& ns,
                                  bool isCapped = false,
                                  int64_t cappedMaxSize = -1,
                                  int64_t cappedMaxDocs = -1,
@@ -124,27 +128,6 @@ namespace mongo {
 
         virtual long long numRecords() const { invariant(!"nyi"); }
 
-    protected:
-        class TwitterRecord {
-        public:
-            enum HeaderSizeValue { HeaderSize = 16 };
-
-            int lengthWithHeaders() const {  return _lengthWithHeaders; }
-            int& lengthWithHeaders() {  return _lengthWithHeaders; }
-
-            const char* data() const { return _data; }
-            char* data() { return _data; }
-
-            int netLength() const { return _lengthWithHeaders - HeaderSize; }
-
-            RecordData toRecordData() const { return RecordData(_data, netLength()); }
-
-        private:
-            int _lengthWithHeaders;
-            char _data[4];
-        };
-
-        virtual TwitterRecord* recordFor( const DiskLoc& loc ) const;
 
     public:
         //
@@ -157,51 +140,15 @@ namespace mongo {
         void setCappedDeleteCallback(CappedDocumentDeleteCallback* cb) { invariant(!"nyi");}
         bool cappedMaxDocs() const { invariant(!"nyi"); }
         bool cappedMaxSize() const { invariant(!"nyi"); }
+
+        HeapRecordStore* _hrs;
+        TwitterCUD& _tcud;
     };
 
-    class TwitterRecordIterator : public RecordIterator {
-    public:
-        TwitterRecordIterator(OperationContext* txn,
-                           const TwitterRecordStore::Records& records,
-                           const TwitterRecordStore& rs,
-                           DiskLoc start = DiskLoc(),
-                           bool tailable = false);
-
-        virtual bool isEOF();
-
-        virtual DiskLoc curr();
-
-        virtual DiskLoc getNext();
-
-        virtual void invalidate(const DiskLoc& dl);
-
-        virtual void prepareToYield();
-
-        virtual bool recoverFromYield();
-
-        virtual RecordData dataFor( const DiskLoc& loc ) const;
+    class TwitterRecordIterator : public HeapRecordIterator {
     };
 
-    class TwitterRecordReverseIterator : public RecordIterator {
-    public:
-        TwitterRecordReverseIterator(OperationContext* txn,
-                                  const TwitterRecordStore::Records& records,
-                                  const TwitterRecordStore& rs,
-                                  DiskLoc start = DiskLoc());
-
-        virtual bool isEOF();
-
-        virtual DiskLoc curr();
-
-        virtual DiskLoc getNext();
-
-        virtual void invalidate(const DiskLoc& dl);
-
-        virtual void prepareToYield();
-
-        virtual bool recoverFromYield();
-
-        virtual RecordData dataFor( const DiskLoc& loc ) const;
+    class TwitterRecordReverseIterator : public HeapRecordReverseIterator {
     };
 
 } // namespace mongo
