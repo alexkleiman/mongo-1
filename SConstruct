@@ -230,6 +230,9 @@ add_option( "mm", "use main memory instead of memory mapped files" , 0 , True )
 add_option( "ssl" , "Enable SSL" , 0 , True )
 add_option( "rocksdb" , "Enable RocksDB" , 0 , False )
 
+#extremely experimental features
+add_option( "twitter", "Enable Twitter storage engine" , 0 , False )
+
 # library choices
 js_engine_choices = ['v8-3.12', 'v8-3.25', 'none']
 add_option( "js-engine", "JavaScript scripting engine implementation", 1, False,

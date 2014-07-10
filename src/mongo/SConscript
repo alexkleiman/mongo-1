@@ -31,6 +31,7 @@ env.SConscript(['base/SConscript',
                 'db/storage/heap1/SConscript',
                 'db/storage/mmap_v1/SConscript',
                 'db/storage/rocks/SConscript',
+                'db/storage/twitter/SConscript',
                 'db/structure/SConscript',
                 'db/structure/btree/SConscript',
                 'db/SConscript',
@@ -958,6 +959,9 @@ serveronlyLibdeps = ["coreshard",
 
 if has_option("rocksdb" ):
     serveronlyLibdeps.append( 'db/storage/rocks/storage_rocks' )
+
+if has_option("twitter"):
+    serveronlyLibdeps.append( 'db/storage/twitter/storage_twitter' )
 
 env.Library("serveronly", serverOnlyFiles,
             LIBDEPS=serveronlyLibdeps )
