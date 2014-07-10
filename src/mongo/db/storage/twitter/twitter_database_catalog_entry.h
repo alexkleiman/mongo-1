@@ -30,19 +30,25 @@
 
 #pragma once
 
+#include <list>
+#include <map>
+#include <string>
+
+#include <boost/thread/mutex.hpp>
+
+#include "mongo/db/catalog/collection_catalog_entry.h"
 #include "mongo/db/catalog/database_catalog_entry.h"
+#include "mongo/db/storage/heap1/heap1_database_catalog_entry.h"
 
 namespace mongo {
 
-    class TwitterEngine;
+    class TwitterRecordStore;
 
-    /**
-     * this class acts as a thin layer over TwitterEngine,
-     * and does and stores nothing.
-     */
     class TwitterDatabaseCatalogEntry : public DatabaseCatalogEntry {
     public:
-        TwitterDatabaseCatalogEntry( TwitterEngine* engine, const StringData& dbname );
+        TwitterDatabaseCatalogEntry( const StringData& name, Heap1DatabaseCatalogEntry* hdce );
+
+        virtual ~TwitterDatabaseCatalogEntry();
 
         virtual bool exists() const;
         virtual bool isEmpty() const;
@@ -53,27 +59,25 @@ namespace mongo {
 
         // these are hacks :(
         virtual bool isOlderThan24( OperationContext* opCtx ) const { return false; }
-        virtual void markIndexSafe24AndUp( OperationContext* opCtx ) {}
+        virtual void markIndexSafe24AndUp( OperationContext* opCtx ) { }
 
         /**
          * @return true if current files on disk are compatibile with the current version.
          *              if we return false, then an upgrade will be required
          */
-        virtual bool currentFilesCompatible( OperationContext* opCtx ) const;
+        virtual bool currentFilesCompatible( OperationContext* opCtx ) const { return true; }
 
         // ----
 
         virtual void getCollectionNamespaces( std::list<std::string>* out ) const;
 
-        // The DatabaseCatalogEntry owns this, do not delete
         virtual CollectionCatalogEntry* getCollectionCatalogEntry( OperationContext* txn,
                                                                    const StringData& ns ) const;
 
-        // The DatabaseCatalogEntry owns this, do not delete
         virtual RecordStore* getRecordStore( OperationContext* txn,
                                              const StringData& ns );
 
-        // Ownership passes to caller
+
         virtual IndexAccessMethod* getIndex( OperationContext* txn,
                                              const CollectionCatalogEntry* collection,
                                              IndexCatalogEntry* index );
@@ -92,6 +96,6 @@ namespace mongo {
                                        const StringData& ns );
 
     private:
-        TwitterEngine* _engine;
+        Heap1DatabaseCatalogEntry* _hdce;
     };
 }
