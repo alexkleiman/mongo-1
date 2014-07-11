@@ -50,11 +50,7 @@ namespace mongo {
     public:
         explicit TwitterRecordStore(TwitterCUD& tcud,
                                  HeapRecordStore* hrs,
-                                 const StringData& ns,
-                                 bool isCapped = false,
-                                 int64_t cappedMaxSize = -1,
-                                 int64_t cappedMaxDocs = -1,
-                                 CappedDocumentDeleteCallback* cappedDeleteCallback = NULL);
+                                 const StringData& ns);
 
         virtual const char* name() const;
 

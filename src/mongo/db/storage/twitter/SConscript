@@ -13,6 +13,7 @@ if has_option("twitter"):
             'twitter_engine.cpp',
             'twitter_cud.cpp',
             'twitter_record_store.cpp',
+            
             ],
         LIBDEPS= [
             '$BUILD_DIR/mongo/bson',
@@ -20,7 +21,7 @@ if has_option("twitter"):
             '$BUILD_DIR/mongo/db/structure/record_store',
             '$BUILD_DIR/mongo/foundation',
             '$BUILD_DIR/mongo/db/storage/heap1/storage_heap1',
-            '$BUILD_DIR/mongo/db/structure/record_store',
+            '$BUILD_DIR/mongo/db/structure/record_store'
             ],
         SYSLIBDEPS=["c++", "twitcurl", "curl"] 
         )
@@ -35,4 +36,14 @@ if has_option("twitter"):
             'storage_twitter_base'
             ]
         )
+
+env.CppUnitTest(
+   target='twitter_test',
+   source=['twitter_test.cpp',
+           ],
+   LIBDEPS=[
+       'storage_twitter_base',
+       '$BUILD_DIR/mongo/db/storage/heap1/storage_heap1',
+       ]
+   )
 
