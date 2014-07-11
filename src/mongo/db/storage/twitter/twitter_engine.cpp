@@ -30,12 +30,60 @@
 
 #include "mongo/db/storage/twitter/twitter_engine.h"
 
+#include <fstream>
+
+#include "mongo/db/operation_context_noop.h"
 #include "mongo/db/storage/heap1/heap1_database_catalog_entry.h"
 #include "mongo/db/storage/heap1/heap1_recovery_unit.h"
 #include "mongo/db/storage/twitter/twitter_database_catalog_entry.h"
 #include "mongo/util/log.h"
 
 namespace mongo {
+
+    bool isColon(string s) {
+        return s.compare(":") == 0;
+    }
+
+    TwitterEngine::TwitterEngine(): _heapEngine() {
+        std::ifstream file("loaded.mongo");
+        std::string str; 
+
+        vector<string> lines;
+
+        while (std::getline(file, str)) {
+            string newString = str;
+            lines.insert(lines.begin(), newString);
+        }
+
+        set<string> namespaces;
+
+        for (vector<string>::iterator it = lines.begin(); it != lines.end(); ++it) {
+            vector<string> splitVec;
+            string toSplit(*it);
+
+            //getline(toSplit, 
+
+            invariant(splitVec.size() == 3);
+
+            OperationContextNoop txn;
+            DatabaseCatalogEntry* dbce = _heapEngine.getDatabaseCatalogEntry(&txn, "db");
+
+            string collectionNamespace = splitVec[0];
+            string diskLocString = splitVec[1];
+            string bsonString = splitVec[2];
+
+            if (namespaces.find(collectionNamespace) != namespaces.end()){
+                namespaces.insert(collectionNamespace);
+                dbce->createCollection(&txn, StringData(collectionNamespace), CollectionOptions(), true);
+            }
+
+            if (bsonString.compare("Delete") == 0){
+
+            } else {
+
+            }
+        }
+    }
 
     RecoveryUnit* TwitterEngine::newRecoveryUnit( OperationContext* opCtx ) {
         return new Heap1RecoveryUnit();

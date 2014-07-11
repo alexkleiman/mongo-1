@@ -51,6 +51,7 @@ namespace mongo {
     	mutable boost::mutex _curlLock;
     	TwitterCUD(string username, string password);
     	string _toTweetString(BSONObj obj, DiskLoc loc, string ns);
+        void _writeString(string s);
     	twitCurl t;
     };
 

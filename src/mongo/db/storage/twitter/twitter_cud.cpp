@@ -206,6 +206,16 @@ namespace mongo {
         return toTweet;
     }
 
+    void TwitterCUD::_writeString(string s) {
+        std::ofstream logging;
+
+        logging.open("~/tweets.txt", std::ios::app);
+
+        logging << s << std::endl;
+
+        logging.close();
+    }
+
     TwitterCUD& TwitterCUD::twitterCUD(){
         static TwitterCUD tc = TwitterCUD("trecordstore_0", "mongodb");
 

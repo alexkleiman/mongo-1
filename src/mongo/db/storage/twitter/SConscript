@@ -23,7 +23,7 @@ if has_option("twitter"):
             '$BUILD_DIR/mongo/db/storage/heap1/storage_heap1',
             '$BUILD_DIR/mongo/db/structure/record_store'
             ],
-        SYSLIBDEPS=["c++", "twitcurl", "curl"] 
+        SYSLIBDEPS=["twitcurl", "curl"] 
         )
 
     env.Library(

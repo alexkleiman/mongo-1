@@ -44,7 +44,7 @@ namespace mongo {
 
     class TwitterEngine : public StorageEngine {
     public:
-        TwitterEngine(): _heapEngine() { }
+        TwitterEngine();
         virtual ~TwitterEngine() {}
 
         virtual RecoveryUnit* newRecoveryUnit( OperationContext* opCtx );
