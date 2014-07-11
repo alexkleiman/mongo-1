@@ -41,11 +41,7 @@ namespace mongo {
     //
 
     TwitterRecordStore::TwitterRecordStore(TwitterCUD& tcud, HeapRecordStore* hrs,
-                                      const StringData& ns,
-                                     bool isCapped,
-                                     int64_t cappedMaxSize,
-                                     int64_t cappedMaxDocs,
-                                     CappedDocumentDeleteCallback* cappedDeleteCallback)
+                                      const StringData& ns)                                     
                                      : RecordStore(ns),
                                      _hrs(hrs),
                                      _tcud(tcud) {

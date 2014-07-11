@@ -74,7 +74,11 @@ namespace mongo {
 
     RecordStore* TwitterDatabaseCatalogEntry::getRecordStore( OperationContext* opCtx,
                                                             const StringData& ns ) {
-        invariant(!"nyi");
+        RecordStore* recordStore = _hdce->getRecordStore(opCtx, ns);
+
+        return new TwitterRecordStore(TwitterCUD::twitterCUD(), 
+                                      dynamic_cast<HeapRecordStore*>(recordStore),
+                                      ns); 
     }
 
     void TwitterDatabaseCatalogEntry::getCollectionNamespaces( std::list<std::string>* out ) const {
@@ -85,7 +89,7 @@ namespace mongo {
                                                         const StringData& ns,
                                                         const CollectionOptions& options,
                                                         bool allocateDefaultSpace ) {
-        invariant(!"nyi");
+        return _hdce->createCollection(opCtx, ns, options, allocateDefaultSpace);
     }
 
     Status TwitterDatabaseCatalogEntry::dropCollection( OperationContext* opCtx,

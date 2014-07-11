@@ -31,14 +31,14 @@
 #include "mongo/db/storage/twitter/twitter_engine.h"
 
 #include "mongo/db/storage/heap1/heap1_database_catalog_entry.h"
+#include "mongo/db/storage/heap1/heap1_recovery_unit.h"
 #include "mongo/db/storage/twitter/twitter_database_catalog_entry.h"
-#include "mongo/db/storage/twitter/twitter_recovery_unit.h"
 #include "mongo/util/log.h"
 
 namespace mongo {
 
     RecoveryUnit* TwitterEngine::newRecoveryUnit( OperationContext* opCtx ) {
-        return new TwitterRecoveryUnit();
+        return new Heap1RecoveryUnit();
     }
 
     void TwitterEngine::listDatabases( std::vector<std::string>* out ) const {

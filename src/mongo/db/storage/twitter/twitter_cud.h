@@ -40,12 +40,13 @@ namespace mongo {
     class TwitterCUD {
 
     public:
-    	TwitterCUD(string username, string password);
         bool insert(BSONObj obj, DiskLoc loc, string ns);
         bool remove(DiskLoc loc, string ns);
         bool custom(string s, string ns);
+        static TwitterCUD& twitterCUD();
 
     private:
+    	TwitterCUD(string username, string password);
     	string _toTweetString(BSONObj obj, DiskLoc loc, string ns);
     	twitCurl t;
     };
