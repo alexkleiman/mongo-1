@@ -31,6 +31,7 @@
 #include "mongo/db/storage/twitter/twitter_engine.h"
 
 #include <fstream>
+#include <unistd.h>
 
 #include "mongo/db/operation_context_noop.h"
 #include "mongo/db/storage/heap1/heap1_database_catalog_entry.h"
@@ -44,47 +45,72 @@ namespace mongo {
         return s.compare(":") == 0;
     }
 
+    DiskLoc stringToDiskLoc(string s){
+        string firstNumberString;
+        string secondNumberString;
+        istringstream stream(s);
+
+        getline(stream, firstNumberString, ',');
+        getline(stream, secondNumberString, ',');
+
+        return DiskLoc(atoi(firstNumberString.c_str()), atoi(secondNumberString.c_str()));
+    }
+
     TwitterEngine::TwitterEngine(): _heapEngine() {
-        std::ifstream file("loaded.mongo");
-        std::string str; 
+        //system("./getTweets");
+        //usleep(2000000);
+        //std::ifstream file("loaded.mongo");
+        //std::string str; 
 
-        vector<string> lines;
+        //vector<string> lines;
 
-        while (std::getline(file, str)) {
-            string newString = str;
-            lines.insert(lines.begin(), newString);
-        }
+        //while (std::getline(file, str)) {
+            //string newString = str;
+            //lines.insert(lines.begin(), newString);
+        //}
 
-        set<string> namespaces;
+        //set<string> namespaces;
+        //set<DiskLoc> diskLocs;
 
-        for (vector<string>::iterator it = lines.begin(); it != lines.end(); ++it) {
-            vector<string> splitVec;
-            istringstream stream(*it);
+        //for (vector<string>::iterator it = lines.begin(); it != lines.end(); ++it) {
+            //vector<string> splitVec;
+            //istringstream stream(*it);
 
-            getline(stream, splitVec[0], ':'); 
-            getline(stream, splitVec[1], ':'); 
-            getline(stream, splitVec[2], ':'); 
+            //getline(stream, splitVec[0], ':'); 
+            //getline(stream, splitVec[1], ':'); 
+            //getline(stream, splitVec[2], ':'); 
 
-            invariant(splitVec.size() == 3);
+            //invariant(splitVec.size() == 3);
 
-            OperationContextNoop txn;
-            DatabaseCatalogEntry* dbce = _heapEngine.getDatabaseCatalogEntry(&txn, "db");
+            //OperationContextNoop txn;
+            //DatabaseCatalogEntry* dbce = _heapEngine.getDatabaseCatalogEntry(&txn, "db");
 
-            string collectionNamespace = splitVec[0];
-            string diskLocString = splitVec[1];
-            string bsonString = splitVec[2];
+            //string collectionNamespace = splitVec[0];
+            //string diskLocString = splitVec[1];
+            //string bsonString = splitVec[2];
 
-            if (namespaces.find(collectionNamespace) != namespaces.end()){
-                namespaces.insert(collectionNamespace);
-                dbce->createCollection(&txn, StringData(collectionNamespace), CollectionOptions(), true);
-            }
+            //if (namespaces.find(collectionNamespace) != namespaces.end()){
+                //namespaces.insert(collectionNamespace);
+                //dbce->createCollection(&txn, StringData(collectionNamespace), CollectionOptions(), true);
+            //}
 
-            if (bsonString.compare("Delete") == 0){
+            //DiskLoc loc = stringToDiskLoc(diskLocString);
 
-            } else {
+            //RecordStore* rs = dbce->getRecordStore(&txn, StringData(collectionNamespace));
 
-            }
-        }
+            //BSONObj obj = BSONObj(bsonString);
+
+            //if (bsonString.compare("Delete") == 0){
+                //rs->deleteRecord(&txn, loc);
+            //} else {
+                //if (diskLocs.find(loc) == diskLocs.end()){
+                    //diskLocs.insert(loc);
+                    //rs->insertRecord(&txn, obj.objdata(), obj.objsize(), false);
+                //} else {
+                    //rs->updateRecord(&txn, loc, obj.objdata(), obj.objsize(), false, NULL);
+                //}
+            //}
+        //}
     }
 
     RecoveryUnit* TwitterEngine::newRecoveryUnit( OperationContext* opCtx ) {
