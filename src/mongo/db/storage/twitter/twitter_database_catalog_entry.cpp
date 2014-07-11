@@ -101,7 +101,7 @@ namespace mongo {
     IndexAccessMethod* TwitterDatabaseCatalogEntry::getIndex( OperationContext* txn,
                                                             const CollectionCatalogEntry* collection,
                                                             IndexCatalogEntry* index ) {
-        invariant(!"nyi");
+        return _hdce->getIndex(txn, collection, index);
     }
 
     Status TwitterDatabaseCatalogEntry::renameCollection( OperationContext* txn,

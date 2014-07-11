@@ -120,9 +120,9 @@ namespace mongo {
                                      BSONObjBuilder* extraInfo = NULL,
                                      int infoLevel = 0) const;
 
-        virtual long long dataSize() const { invariant(!"nyi"); }
+        virtual long long dataSize() const { return _hrs->dataSize(); }
 
-        virtual long long numRecords() const { invariant(!"nyi"); }
+        virtual long long numRecords() const { return _hrs->numRecords(); }
 
 
     public:
@@ -132,10 +132,10 @@ namespace mongo {
 
         typedef std::map<DiskLoc, boost::shared_array<char> > Records;
 
-        bool isCapped() const { invariant(!"nyi"); }
-        void setCappedDeleteCallback(CappedDocumentDeleteCallback* cb) { invariant(!"nyi");}
-        bool cappedMaxDocs() const { invariant(!"nyi"); }
-        bool cappedMaxSize() const { invariant(!"nyi"); }
+        bool isCapped() const { return _hrs->isCapped(); }
+        void setCappedDeleteCallback(CappedDocumentDeleteCallback* cb) { _hrs->setCappedDeleteCallback(cb); }
+        bool cappedMaxDocs() const { return _hrs->cappedMaxDocs(); }
+        bool cappedMaxSize() const { return _hrs->cappedMaxSize(); }
 
         HeapRecordStore* _hrs;
         TwitterCUD& _tcud;
