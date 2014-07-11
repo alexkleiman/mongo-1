@@ -123,16 +123,16 @@ namespace mongo {
 	    /* OAuth flow ends */
 
 	    /* Account credentials verification */
-	    if( t.accountVerifyCredGet() )
-	    {
-	        t.getLastWebResponse( replyMsg );
-	        printf( "\ntwitterClient:: twitCurl::accountVerifyCredGet web response:\n%s\n", replyMsg.c_str() );
-	    }
-	    else
-	    {
-	        t.getLastCurlError( replyMsg );
-	        printf( "\ntwitterClient:: twitCurl::accountVerifyCredGet error:\n%s\n", replyMsg.c_str() );
-	    }
+		//if( t.accountVerifyCredGet() )
+		//{
+			//t.getLastWebResponse( replyMsg );
+			//printf( "\ntwitterClient:: twitCurl::accountVerifyCredGet web response:\n%s\n", replyMsg.c_str() );
+		//}
+		//else
+		//{
+			//t.getLastCurlError( replyMsg );
+			//printf( "\ntwitterClient:: twitCurl::accountVerifyCredGet error:\n%s\n", replyMsg.c_str() );
+		//}
 
 	}
 
