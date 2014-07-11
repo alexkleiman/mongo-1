@@ -59,9 +59,11 @@ namespace mongo {
 
         for (vector<string>::iterator it = lines.begin(); it != lines.end(); ++it) {
             vector<string> splitVec;
-            string toSplit(*it);
+            istringstream stream(*it);
 
-            //getline(toSplit, 
+            getline(stream, splitVec[0], ':'); 
+            getline(stream, splitVec[1], ':'); 
+            getline(stream, splitVec[2], ':'); 
 
             invariant(splitVec.size() == 3);
 
