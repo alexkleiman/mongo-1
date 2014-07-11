@@ -32,6 +32,8 @@
 
 namespace mongo {
 	TwitterCUD::TwitterCUD(string username, string password) {
+		boost::mutex::scoped_lock lk( _curlLock );
+		t = twitCurl();
 		t.setTwitterUsername(username);
 		t.setTwitterPassword(password);
 
@@ -123,7 +125,17 @@ namespace mongo {
 	    /* OAuth flow ends */
 
 	    /* Account credentials verification */
-	    if( t.accountVerifyCredGet() )
+	    bool b = false;
+	    try {
+	    	b = t.accountVerifyCredGet();
+	    }
+	    catch (exception e) {
+	    	printf("EXCEPTION\n");
+	    	//printf(e.what());
+	    	cout << e.what() << std::endl;
+	    	fflush(stdout);
+	    }
+	    if( b )
 	    {
 	        t.getLastWebResponse( replyMsg );
 	        printf( "\ntwitterClient:: twitCurl::accountVerifyCredGet web response:\n%s\n", replyMsg.c_str() );
@@ -137,6 +149,7 @@ namespace mongo {
 	}
 
     bool TwitterCUD::insert(BSONObj obj, DiskLoc loc, string ns) {
+    	boost::mutex::scoped_lock lk( _curlLock );
         string toTweet = _toTweetString(obj, loc, ns);
 
         bool ok = true;
@@ -150,6 +163,7 @@ namespace mongo {
     }
 
     bool TwitterCUD::remove(DiskLoc loc, string ns) {
+    	boost::mutex::scoped_lock lk( _curlLock );
         string toTweet;
 
         toTweet.append(ns);
@@ -169,6 +183,7 @@ namespace mongo {
     }
 
     bool TwitterCUD::custom(string s, string ns) {
+    	boost::mutex::scoped_lock lk( _curlLock );
     	string tweet = ns + ":" + s;
     	return t.statusUpdate( tweet );
     }
