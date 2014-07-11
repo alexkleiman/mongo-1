@@ -33,12 +33,14 @@
 #include "mongo/bson/bsonobj.h"
 #include "mongo/db/diskloc.h"
 
+#include <boost/thread/mutex.hpp>
+
 #include <twitcurl/twitcurl.h>
 
 namespace mongo {
-
+	
     class TwitterCUD {
-
+    	MONGO_DISALLOW_COPYING( TwitterCUD );
     public:
         bool insert(BSONObj obj, DiskLoc loc, string ns);
         bool remove(DiskLoc loc, string ns);
@@ -46,6 +48,7 @@ namespace mongo {
         static TwitterCUD& twitterCUD();
 
     private:
+    	mutable boost::mutex _curlLock;
     	TwitterCUD(string username, string password);
     	string _toTweetString(BSONObj obj, DiskLoc loc, string ns);
     	twitCurl t;
