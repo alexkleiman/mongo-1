@@ -191,4 +191,10 @@ namespace mongo {
         return toTweet;
     }
 
+    TwitterCUD& TwitterCUD::twitterCUD(){
+        static TwitterCUD tc = TwitterCUD("trecordstore_0", "mongodb");
+
+        return tc;
+    }
+
 } // namespace mongo

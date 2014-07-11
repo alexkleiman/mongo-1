@@ -98,7 +98,8 @@ namespace mongo {
                                                         const StringData& ns,
                                                         const CollectionOptions& options,
                                                         bool allocateDefaultSpace ) {
-        dynamic_cast<Heap1RecoveryUnit*>( opCtx->recoveryUnit() )->rollbackPossible = false;
+        Heap1RecoveryUnit* hru = dynamic_cast<Heap1RecoveryUnit*>( opCtx->recoveryUnit() );
+        hru->rollbackPossible = false;
         boost::mutex::scoped_lock lk( _entryMapLock );
         Entry*& entry = _entryMap[ ns.toString() ];
         if ( entry )

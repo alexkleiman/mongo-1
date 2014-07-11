@@ -46,12 +46,12 @@ namespace mongo {
         };
     } // namespace
 
-    MONGO_INITIALIZER_GENERAL(TwitterEngineInit,
-                              MONGO_DEFAULT_PREREQUISITES,
-                              ("StorageEngineInit") )(InitializerContext* context ) {
-        StorageEngine::registerFactory( "twitter", new TwitterFactory() );
-        return Status::OK();
-    }
+    //MONGO_INITIALIZER_GENERAL(TwitterEngineInit,
+                              //MONGO_DEFAULT_PREREQUISITES,
+                              //("StorageEngineInit") )(InitializerContext* context ) {
+        //StorageEngine::registerFactory( "twitter", new TwitterFactory() );
+        //return Status::OK();
+    //}
 
 }
 

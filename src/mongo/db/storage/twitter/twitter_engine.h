@@ -32,11 +32,11 @@
 
 #include <set>
 #include <string>
-#include <map>
 
 #include <boost/thread/mutex.hpp>
 
 #include "mongo/db/storage/storage_engine.h"
+#include "mongo/db/storage/heap1/heap1_engine.h"
 
 namespace mongo {
 
@@ -44,6 +44,7 @@ namespace mongo {
 
     class TwitterEngine : public StorageEngine {
     public:
+        TwitterEngine(): _heapEngine() { }
         virtual ~TwitterEngine() {}
 
         virtual RecoveryUnit* newRecoveryUnit( OperationContext* opCtx );
@@ -56,13 +57,15 @@ namespace mongo {
         /**
          * @return number of files flushed
          */
-        virtual int flushAllFiles( bool sync ) { return 0; }
+        virtual int flushAllFiles( bool sync );
 
         virtual Status repairDatabase( OperationContext* tnx,
                                        const std::string& dbName,
                                        bool preserveClonedFilesOnFailure = false,
-                                       bool backupOriginalFiles = false ) { return Status::OK(); }
+                                       bool backupOriginalFiles = false );
 
+    private:
+        Heap1Engine _heapEngine;
     };
 
 }

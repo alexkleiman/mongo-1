@@ -33,6 +33,7 @@
 #include "mongo/db/storage_options.h"
 #include "mongo/db/storage/heap1/heap1_engine.h"
 #include "mongo/db/storage/mmap_v1/mmap_v1_engine.h"
+#include "mongo/db/storage/twitter/twitter_engine.h"
 #include "mongo/util/log.h"
 
 namespace mongo {
@@ -56,6 +57,8 @@ namespace mongo {
         }
         else if ( storageGlobalParams.engine == "heap1" ) {
             globalStorageEngine = new Heap1Engine();
+        } else if ( storageGlobalParams.engine == "twitter" ) {
+            globalStorageEngine = new TwitterEngine();
         }
         else {
             const StorageEngine::Factory* factory = factorys[storageGlobalParams.engine];

@@ -29,7 +29,6 @@ if has_option("twitter"):
     env.Library(
         target= 'storage_twitter',
         source= [
-            'twitter_database_catalog_entry_mongod.cpp',
             'twitter_init.cpp'
             ],
         LIBDEPS= [

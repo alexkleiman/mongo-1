@@ -30,24 +30,36 @@
 
 #include "mongo/db/storage/twitter/twitter_engine.h"
 
+#include "mongo/db/storage/heap1/heap1_database_catalog_entry.h"
+#include "mongo/db/storage/heap1/heap1_recovery_unit.h"
 #include "mongo/db/storage/twitter/twitter_database_catalog_entry.h"
-#include "mongo/db/storage/twitter/twitter_recovery_unit.h"
 #include "mongo/util/log.h"
 
 namespace mongo {
 
     RecoveryUnit* TwitterEngine::newRecoveryUnit( OperationContext* opCtx ) {
-        return new TwitterRecoveryUnit();
+        return new Heap1RecoveryUnit();
     }
 
     void TwitterEngine::listDatabases( std::vector<std::string>* out ) const {
-        invariant(!"nyi");
+        _heapEngine.listDatabases(out);
     }
 
     DatabaseCatalogEntry* TwitterEngine::getDatabaseCatalogEntry( OperationContext* opCtx,
                                                                 const StringData& dbName ) {
-        invariant(!"nyi");
-        return NULL;
+        return new TwitterDatabaseCatalogEntry(dbName, new Heap1DatabaseCatalogEntry(dbName));
     }
 
+    int TwitterEngine::flushAllFiles(bool sync) {
+        return _heapEngine.flushAllFiles(sync);
+    }
+
+    Status TwitterEngine::repairDatabase( OperationContext* tnx,
+                                          const std::string& dbName,
+                                          bool preserveClonedFilesOnFailure,
+                                          bool backupOriginalFiles) {
+
+        return _heapEngine.repairDatabase(
+                tnx, dbName, preserveClonedFilesOnFailure, backupOriginalFiles);
+    }
 }
