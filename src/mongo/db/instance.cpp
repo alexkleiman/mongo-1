@@ -536,7 +536,7 @@ namespace mongo {
     }
 
     /*static*/ 
-    void Database::closeDatabase(OperationContext* txn, const string& db) {
+    void Database::closeDatabase(OperationContext* txn, const StringData& db) {
         // XXX? - Do we need to close database under global lock or just DB-lock is sufficient ?
         invariant(txn->lockState()->isW());
 
@@ -600,7 +600,6 @@ namespace mongo {
         uassertStatusOK(executor.prepare());
 
         Lock::DBWrite lk(txn->lockState(), ns.ns(), useExperimentalDocLocking);
-        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         // if this ever moves to outside of lock, need to adjust check
         // Client::Context::_finishInit
@@ -613,7 +612,6 @@ namespace mongo {
 
         // for getlasterror
         lastError.getSafe()->recordUpdate( res.existing , res.numMatched , res.upserted );
-        wunit.commit();
     }
 
     void receivedDelete(OperationContext* txn, Message& m, CurOp& op) {
@@ -642,7 +640,6 @@ namespace mongo {
         DeleteExecutor executor(&request);
         uassertStatusOK(executor.prepare());
         Lock::DBWrite lk(txn->lockState(), ns.ns());
-        WriteUnitOfWork wunit(txn->recoveryUnit());
 
         // if this ever moves to outside of lock, need to adjust check Client::Context::_finishInit
         if ( ! broadcast && handlePossibleShardedMessage( m , 0 ) )
@@ -653,7 +650,6 @@ namespace mongo {
         long long n = executor.execute(ctx.db());
         lastError.getSafe()->recordDelete( n );
         op.debug().ndeleted = n;
-        wunit.commit();
     }
 
     QueryResult* emptyMoreResult(long long);
@@ -1000,7 +996,7 @@ namespace {
     static AtomicUInt32 shutdownInProgress(0);
 
     bool inShutdown() {
-        return shutdownInProgress.load() != 0;
+        return shutdownInProgress.loadRelaxed() != 0;
     }
 
     static void shutdownServer(OperationContext* txn) {

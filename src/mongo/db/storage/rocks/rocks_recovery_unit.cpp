@@ -108,6 +108,10 @@ namespace mongo {
               _writeBatch->Count() > 1000 );
     }
 
+    void RocksRecoveryUnit::registerChange(Change* change) {
+        invariant( !"nyi" );
+    }
+
     void* RocksRecoveryUnit::writingPtr(void* data, size_t len) {
         warning() << "RocksRecoveryUnit::writingPtr doesn't work";
         return data;

@@ -353,6 +353,12 @@ namespace {
         Privilege::addPrivilegeToPrivilegeVector(
                 privileges,
                 Privilege(ResourcePattern::forClusterResource(), ActionType::invalidateUserCache));
+
+
+        ActionSet readRoleAndIndexActions;
+        readRoleAndIndexActions += readRoleActions;
+        readRoleAndIndexActions << ActionType::createIndex << ActionType::dropIndex;
+
         Privilege::addPrivilegeToPrivilegeVector(
                 privileges,
                 Privilege(ResourcePattern::forCollectionName("system.users"),
@@ -361,12 +367,12 @@ namespace {
                 privileges,
                 Privilege(ResourcePattern::forExactNamespace(
                                   AuthorizationManager::usersCollectionNamespace),
-                          readRoleActions));
+                          readRoleAndIndexActions));
         Privilege::addPrivilegeToPrivilegeVector(
                 privileges,
                 Privilege(ResourcePattern::forExactNamespace(
                                   AuthorizationManager::rolesCollectionNamespace),
-                          readRoleActions));
+                          readRoleAndIndexActions));
         Privilege::addPrivilegeToPrivilegeVector(
                 privileges,
                 Privilege(ResourcePattern::forExactNamespace(

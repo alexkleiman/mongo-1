@@ -63,6 +63,8 @@ namespace mongo {
 
         virtual bool isCommitNeeded() const;
 
+        virtual void registerChange(Change* change);
+
         virtual void* writingPtr(void* data, size_t len);
 
         virtual void syncDataAndTruncateJournal();

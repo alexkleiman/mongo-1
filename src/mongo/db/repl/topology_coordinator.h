@@ -43,8 +43,7 @@ namespace mongo {
 
 namespace repl {
 
-    class HeartbeatInfo;
-    class NewMember;
+    class MemberHeartbeatData;
     struct MemberState;
     class ReplicaSetConfig;
     class TagSubgroup;
@@ -77,6 +76,8 @@ namespace repl {
         virtual void setCommitOkayThrough(const OpTime& optime) = 0;
         // The optime of the last op received over the network from the sync source
         virtual void setLastReceived(const OpTime& optime) = 0;
+        // The index into the config used when we next choose a sync source
+        virtual void setForceSyncSourceIndex(int index) = 0;
 
         // Looks up _syncSource's address and returns it, for use by the Applier
         virtual HostAndPort getSyncSourceAddress() const = 0;
@@ -89,7 +90,8 @@ namespace repl {
         // Add function pointer to callback list; call function when config changes
         // Applier needs to know when things like chainingAllowed or slaveDelay change. 
         // ReplCoord needs to know when things like the tag sets change.
-        typedef stdx::function<void (const ReplicaSetConfig& config)> ConfigChangeCallbackFn;
+        typedef stdx::function<void (const ReplicaSetConfig& config, int myIndex)>
+                ConfigChangeCallbackFn;
         virtual void registerConfigChangeCallback(const ConfigChangeCallbackFn& fn) = 0;
         // ReplCoord needs to know the state to implement certain public functions
         typedef stdx::function<void (const MemberState& newMemberState)> StateChangeCallbackFn;
@@ -113,12 +115,14 @@ namespace repl {
         virtual void prepareHeartbeatResponse(const ReplicationExecutor::CallbackData& data,
                                               Date_t now,
                                               const BSONObj& cmdObj, 
+                                              const std::string& ourSetName,
                                               BSONObjBuilder* resultObj,
                                               Status* result) = 0;
 
-        // update internal state with heartbeat response
-        virtual HeartbeatResultAction updateHeartbeatInfo(Date_t now,
-                                                          const HeartbeatInfo& newInfo) = 0;
+        // update internal state with heartbeat response corresponding to 'id'
+        virtual HeartbeatResultAction updateHeartbeatData(Date_t now,
+                                                          const MemberHeartbeatData& newInfo,
+                                                          int id) = 0;
 
         // produce a reply to a status request
         virtual void prepareStatusResponse(Date_t now,
@@ -135,7 +139,7 @@ namespace repl {
         virtual void relinquishPrimary(OperationContext* txn) = 0;
 
         // called with new config; notifies all on change
-        virtual void updateConfig(const ReplicaSetConfig& newConfig, int selfIndex) = 0;
+        virtual void updateConfig(const ReplicaSetConfig& newConfig, int selfIndex, Date_t now) = 0;
 
     protected:
         TopologyCoordinator() {}
