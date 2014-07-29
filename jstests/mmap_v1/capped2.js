@@ -1,9 +1,9 @@
 db.capped2.drop();
-db._dbCommand( { create: "capped2", capped: true, size: 1000, autoIndexId: false } );
+db._dbCommand( { create: "capped2", capped: true, size: 1000, $nExtents: 11, autoIndexId: false } );
 tzz = db.capped2;
 
 function debug( x ) {
-    // print( x );
+    print( x );
 }
 
 var val = new Array( 2000 );
@@ -13,19 +13,18 @@ for( i = 0; i < 2000; ++i, c += "---" ) { // bigger and bigger objects through t
 }
 
 function checkIncreasing( i ) {
-    res = tzz.find().sort( { a: -1 } );
+    res = tzz.find().sort( { $natural: -1 } );
     assert( res.hasNext(), "A" );
     var j = i;
     while( res.hasNext() ) {
-        debug( "j = " + j )
         try {
-             assert.eq( val[ j-- ].a.length, res.next().a.length, "B" );
+             assert.eq( val[ j-- ].a, res.next().a, "B" );
         } catch( e ) {
             debug( "capped2 err " + j );
             throw e;
         }
     }
-    res = tzz.find().sort( { a: 1 } );
+    res = tzz.find().sort( { $natural: 1 } );
     assert( res.hasNext(), "C" );
     while( res.hasNext() )
 	assert.eq( val[ ++j ].a, res.next().a, "D" );
@@ -33,13 +32,13 @@ function checkIncreasing( i ) {
 }
 
 function checkDecreasing( i ) {
-    res = tzz.find().sort( { a: -1 } );
+    res = tzz.find().sort( { $natural: -1 } );
     assert( res.hasNext(), "F" );
     var j = i;
     while( res.hasNext() ) {
       	assert.eq( val[ j++ ].a, res.next().a, "G" );
     }
-    res = tzz.find().sort( { a: 1 } );
+    res = tzz.find().sort( { $natural: 1 } );
     assert( res.hasNext(), "H" );
     while( res.hasNext() )
 	assert.eq( val[ --j ].a, res.next().a, "I" );

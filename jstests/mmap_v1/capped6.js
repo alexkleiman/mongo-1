@@ -17,7 +17,7 @@ function debug( x ) {
  * check is performed in both forward and reverse directions.
  */
 function checkOrder( i ) {
-    res = tzz.find().sort( { a: -1 } );
+    res = tzz.find().sort( { $natural: -1 } );
     assert( res.hasNext(), "A" );
     var j = i;
     while( res.hasNext() ) {
@@ -28,7 +28,7 @@ function checkOrder( i ) {
             throw e;
         }
     }
-    res = tzz.find().sort( { a: 1 } );
+    res = tzz.find().sort( { $natural: 1 } );
     assert( res.hasNext(), "C" );
     while( res.hasNext() )
         assert.eq( val[ ++j ].a, res.next().a, "D" );

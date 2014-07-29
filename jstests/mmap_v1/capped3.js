@@ -7,7 +7,6 @@ for( i = 0; i < 1000; ++i ) {
 }
 assert.commandWorked( db.runCommand( { cloneCollectionAsCapped:"jstests_capped3", toCollection:"jstests_capped3_clone", size:100000 } ), "A" );
 c = t2.find();
-
 for( i = 0; i < 1000; ++i ) {
     assert.eq( i, c.next().i, "B" );
 }
