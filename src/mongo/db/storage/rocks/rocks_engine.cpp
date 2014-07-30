@@ -59,13 +59,10 @@ namespace mongo {
             // go through and create RocksCollectionCatalogEntries for all non-indexes
             EntryVector nonIndexEntries = _createNonIndexCatalogEntries( familyNames );
 
-            CfdVector metaDataCfds = _generateMetaDataCfds( nonIndexEntries, familyNames );
-
             // Create a mapping from index names to the Ordering object for each index.
             // These Ordering objects will be used to create RocksIndexEntryComparators to be used
             // with each column family representing a namespace
             map<string, Ordering> indexOrderings = _createIndexOrderings( familyNames,
-                                                                          metaDataCfds,
                                                                           path );
 
             // get ColumnFamilyDescriptors for all the column families
@@ -403,34 +400,7 @@ namespace mongo {
         return entries;
     }
 
-    RocksEngine::CfdVector RocksEngine::_generateMetaDataCfds( const EntryVector& entries,
-                                                       const vector<string>& familyNameVec ) const {
-        unordered_set<string> familyNames( familyNameVec.begin(), familyNameVec.end() );
-
-        CfdVector cfds;
-
-        // the default column family must always be included, as per rocksdb specifications
-        cfds.push_back( rocksdb::ColumnFamilyDescriptor( rocksdb::kDefaultColumnFamilyName,
-                                                         rocksdb::ColumnFamilyOptions() ) );
-
-        for ( unsigned i = 0; i < entries.size(); ++i ) {
-            string columnFamilyName = entries[i]->collectionEntry->metaDataKey();
-
-            // some column families don't have corresponding metadata column families,
-            // so before blindly opening a metadata column family, we check to see that it exists
-            if ( familyNames.find( columnFamilyName ) == familyNames.end() ) {
-                continue;
-            }
-
-            cfds.push_back(rocksdb::ColumnFamilyDescriptor( columnFamilyName,
-                                                            rocksdb::ColumnFamilyOptions() ) );
-        }
-
-        return cfds;
-    }
-
     map<string, Ordering> RocksEngine::_createIndexOrderings( const vector<string>& namespaces,
-                                                              const CfdVector& metaDataCfds,
                                                               const string& filepath ) {
 
 
@@ -440,8 +410,6 @@ namespace mongo {
         rocksdb::DB* dbPtr;
         rocksdb::Status openROStatus = rocksdb::DB::OpenForReadOnly( dbOptions(),
                                                                      filepath,
-                                                                     metaDataCfds,
-                                                                     &metaDataHandles,
                                                                      &dbPtr );
         _db.reset( dbPtr );
 
@@ -454,7 +422,7 @@ namespace mongo {
             string ns = namespaces[i];
             StringData collection( ns );
             size_t sepPos = ns.find( '$' );
-            if ( ns.find( '&' ) != string::npos || sepPos == string::npos ) {
+            if ( sepPos == string::npos ) {
                 continue;
             }
 
@@ -503,7 +471,7 @@ namespace mongo {
 
                 families.push_back( rocksdb::ColumnFamilyDescriptor( ns, options ) );
 
-            } else if ( ns.find( '&' ) != string::npos || _isDefaultFamily( ns ) ) {
+            } else if ( _isDefaultFamily( ns ) ) {
                 families.push_back( rocksdb::ColumnFamilyDescriptor( ns,
                                                                 rocksdb::ColumnFamilyOptions() ) );
             } else {
@@ -516,16 +484,12 @@ namespace mongo {
 
     void RocksEngine::_createEntries( const CfdVector& families,
                                       const vector<rocksdb::ColumnFamilyHandle*> handles ) {
-        std::map<string, int> metadataMap;
+        rocksdb::ColumnFamilyHandle* defaultHandle = NULL;
         for ( unsigned i = 0; i < families.size(); i++ ) {
-            string ns = families[i].name;
-            if ( ns.find( '&' ) == string::npos ) {
+            if ( _isDefaultFamily( ns ) ) {
                 continue;
             }
-            string collection = ns.substr( 0, ns.find( '&' ) );
-            metadataMap.emplace(collection, i);
         }
-
         for ( unsigned i = 0; i < families.size(); i++ ) {
             const string ns = families[i].name;
 
@@ -534,10 +498,6 @@ namespace mongo {
             // RocksDB specifies that the default column family must be included in the database.
             // We want to ignore this column family.
             if ( _isDefaultFamily( ns ) ) {
-                continue;
-            }
-
-            if ( ns.find( '&' ) != string::npos ) {
                 continue;
             }
 
