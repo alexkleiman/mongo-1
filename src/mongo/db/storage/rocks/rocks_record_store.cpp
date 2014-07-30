@@ -93,7 +93,7 @@ namespace mongo {
         // XXX not using a Snapshot here
         if (!_db->Get( _readOptions(),
                        _metadataColumnFamily,
-                       rocksdb::Slice("numRecords"),
+                       rocksdb::Slice(ns.toString() + "-numRecords"),
                        &value ).ok()) {
             _numRecords = 0;
             metadataPresent = false;
@@ -105,7 +105,7 @@ namespace mongo {
         // XXX not using a Snapshot here
         if (!_db->Get( _readOptions(),
                        _metadataColumnFamily,
-                       rocksdb::Slice("dataSize"),
+                       rocksdb::Slice(ns.toString() + "-dataSize"),
                        &value ).ok()) {
             _dataSize = 0;
             invariant(!metadataPresent);
@@ -492,7 +492,7 @@ namespace mongo {
         }
         RocksRecoveryUnit* ru = _getRecoveryUnit( txn );
         const char* nr_ptr = reinterpret_cast<char*>( &_numRecords );
-        const std::string nr_key_string = "numRecords";
+        const std::string nr_key_string = _ns + "-numRecords";
 
         ru->writeBatch()->Put( _metadataColumnFamily,
                                rocksdb::Slice( nr_key_string ),
@@ -506,7 +506,7 @@ namespace mongo {
         _dataSize += amount;
         RocksRecoveryUnit* ru = _getRecoveryUnit( txn );
         const char* ds_ptr = reinterpret_cast<char*>( &_dataSize );
-        const std::string ds_key_string = "dataSize";
+        const std::string ds_key_string = _ns + "-dataSize";
 
         ru->writeBatch()->Put( _metadataColumnFamily,
                                rocksdb::Slice( ds_key_string ),
