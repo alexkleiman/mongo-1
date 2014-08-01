@@ -133,7 +133,6 @@ namespace mongo {
 
         struct Entry {
             boost::scoped_ptr<rocksdb::ColumnFamilyHandle> cfHandle;
-            boost::scoped_ptr<rocksdb::ColumnFamilyHandle> metaCfHandle;
             boost::scoped_ptr<RocksCollectionCatalogEntry> collectionEntry;
             boost::scoped_ptr<RocksRecordStore> recordStore;
             // These ColumnFamilyHandles must be deleted by removeIndex
@@ -159,6 +158,8 @@ namespace mongo {
 
         std::string _path;
         boost::scoped_ptr<rocksdb::DB> _db;
+        // Not owned here as default comlumn family does not need to be deleted by us
+        rocksdb::ColumnFamilyHandle* _defaultHandle;
 
         typedef StringMap< boost::shared_ptr<Entry> > Map;
         mutable boost::mutex _mapLock;
