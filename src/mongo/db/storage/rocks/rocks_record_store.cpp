@@ -181,6 +181,10 @@ namespace mongo {
         // then iter will not be valid and it will crash. To fix this we need the ability to
         // query the write batch, and delete the oldest record in the write batch until the
         // size of the write batch is less than the cap
+
+        // XXX PROBLEMS
+        // 2 threads could delete the same document
+        // multiple inserts using the same snapshot will delete the same document
         while ( cappedAndNeedDelete() ) {
             invariant(_numRecords > 0);
             invariant(iter->Valid());
