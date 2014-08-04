@@ -40,6 +40,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 
+#include <rocksdb/status.h>
 
 #include "mongo/base/disallow_copying.h"
 #include "mongo/bson/ordering.h"
@@ -51,7 +52,6 @@ namespace rocksdb {
     struct ColumnFamilyDescriptor;
     struct ColumnFamilyOptions;
     class DB;
-    class Status;
     class Comparator;
     struct Options;
     struct ReadOptions;
@@ -209,5 +209,12 @@ namespace mongo {
          */
         void _createEntries( const CfdVector& families,
                              const std::vector<rocksdb::ColumnFamilyHandle*> handles );
+    };
+
+    Status toMongoStatus( rocksdb::Status s ) {
+        if ( s.ok() )
+            return Status::OK();
+        else
+            return Status( ErrorCodes::InternalError(), s.ToString() );
     };
 }

@@ -57,7 +57,7 @@ namespace mongo {
     };
 
     // to be used in testing
-    static std::unique_ptr<rocksdb::Comparator> _rocksComparator(
+    static std::scoped_ptr<rocksdb::Comparator> _rocksComparator(
             RocksRecordStore::newRocksCollectionComparator() );
 
     rocksdb::ColumnFamilyOptions getColumnFamilyOptions() {
@@ -67,13 +67,6 @@ namespace mongo {
     }
 
     string _rocksRecordStoreTestDir = "mongo-rocks-test";
-
-    Status toMongoStatus( rocksdb::Status s ) {
-        if ( s.ok() )
-            return Status::OK();
-        else
-            return Status( ErrorCodes::Error(), s.ToString() );
-    }
 
     rocksdb::DB* getDB( string path) {
         boost::filesystem::remove_all( path );
@@ -202,7 +195,10 @@ namespace mongo {
                 MyOperationContext opCtx( db.get() );
                 {
                     WriteUnitOfWork uow( opCtx.recoveryUnit() );
-                    StatusWith<DiskLoc> res = rs.insertRecord( &opCtx, s.c_str(), s.size() +1, -1 );
+                    StatusWith<DiskLoc> res = rs.insertRecord(&opCtx,
+                                                              s.c_str(),
+                                                              s.size() + 1,
+                                                              -1 );
                     ASSERT_OK( res.getStatus() );
                     loc = res.getValue();
                 }

@@ -78,8 +78,7 @@ namespace mongo {
         iter->SeekToLast();
         if (iter->Valid()) {
             rocksdb::Slice lastSlice = iter->key();
-            DiskLoc lastLoc = reinterpret_cast<DiskLoc*>( const_cast<char*>(
-                                                           lastSlice.data() ) )[0];
+            DiskLoc lastLoc = _makeDiskLoc( lastSlice );
             _nextIdNum.store( lastLoc.getOfs() + ( uint64_t( lastLoc.a() ) << 32 ) + 1) ;
         }
         else {
@@ -99,7 +98,7 @@ namespace mongo {
             metadataPresent = false;
         }
         else {
-            memcpy( &_numRecords, value.data(), sizeof( long long ));
+            memcpy( &_numRecords, value.data(), sizeof( _numRecords ));
         }
 
         // XXX not using a Snapshot here
@@ -111,7 +110,7 @@ namespace mongo {
             invariant(!metadataPresent);
         }
         else {
-            memcpy( &_dataSize, value.data(), sizeof( long long ));
+            memcpy( &_dataSize, value.data(), sizeof( _dataSize ));
             invariant( _dataSize >= 0 );
         }
     }
@@ -126,7 +125,7 @@ namespace mongo {
     }
 
     RecordData RocksRecordStore::dataFor( const DiskLoc& loc) const {
-        // ownership passes to the shared_array created below
+        // TODO investigate using cursor API to get a Slice and avoid double copying.
         std::string value;
 
         // XXX not using a Snapshot here
@@ -185,12 +184,11 @@ namespace mongo {
         // XXX PROBLEMS
         // 2 threads could delete the same document
         // multiple inserts using the same snapshot will delete the same document
-        while ( cappedAndNeedDelete() ) {
+        while ( cappedAndNeedDelete() && iter->Valid() ) {
             invariant(_numRecords > 0);
-            invariant(iter->Valid());
 
             rocksdb::Slice slice = iter->key();
-            DiskLoc oldest = reinterpret_cast<const DiskLoc*>( slice.data() )[0];
+            DiskLoc oldest = _makeDiskLoc( slice );
 
             if ( _cappedDeleteCallback )
                 uassertStatusOK(_cappedDeleteCallback->aboutToDeleteCapped(txn, oldest));
@@ -227,7 +225,7 @@ namespace mongo {
                                                         const DocWriter* doc,
                                                         bool enforceQuota ) {
         const int len = doc->documentSize();
-        boost::shared_array<char> buf( new char[len] );
+        boost::scoped_array<char> buf( new char[len] );
         doc->writeDocument( buf.get() );
 
         return insertRecord( txn, buf.get(), len, enforceQuota );
@@ -276,10 +274,10 @@ namespace mongo {
         rocksdb::Status status;
         status = _db->Get( _readOptions( txn ), _columnFamily, key, &value );
 
-
-        if ( status.IsNotFound() )
-            return Status( ErrorCodes::InternalError, "doc not found for update in place" );
         if ( !status.ok() ) {
+            if ( status.IsNotFound() )
+                return Status( ErrorCodes::InternalError, "doc not found for update in place" );
+
             log() << "rocks Get failed, blowing up: " << status.ToString();
             invariant( false );
         }
@@ -351,16 +349,20 @@ namespace mongo {
                                        ValidateAdaptor* adaptor,
                                        ValidateResults* results,
                                        BSONObjBuilder* output ) const {
-        RecordIterator* iter = getIterator( txn );
         // TODO validate that _numRecords and _dataSize are correct in scanData mode
+        bool invalidObject = false;
         if ( scanData ) {
+            boost::scoped_ptr<RecordIterator> iter( getIterator( txn ) );
             while( !iter->isEOF() ) {
                 RecordData data = dataFor( iter->curr() );
                 size_t dataSize;
                 const Status status = adaptor->validate( data, &dataSize );
                 if (!status.isOK()) {
                     results->valid = false;
-                    results->errors.push_back("invalid object detected (see logs)");
+                    if ( invalidObject ) {
+                        results->errors.push_back("invalid object detected (see logs)");
+                    }
+                    invalidObject = true;
                     log() << "Invalid object detected in " << _ns << ": " << status.reason();
                 }
                 iter->getNext();
@@ -387,6 +389,7 @@ namespace mongo {
     Status RocksRecordStore::setCustomOption( OperationContext* txn,
                                               const BSONElement& option,
                                               BSONObjBuilder* info ) {
+        // TODO make these options persistent
         // NOTE can't do write options here as writes are done in a write batch which is held in
         // a recovery unit
         string optionName = option.fieldName();
@@ -410,10 +413,10 @@ namespace mongo {
     }
 
     namespace {
-        class RocksIndexEntryComparator : public rocksdb::Comparator {
+        class RocksCollectionComparator : public rocksdb::Comparator {
             public:
-                RocksIndexEntryComparator() { }
-                virtual ~RocksIndexEntryComparator() { }
+                RocksCollectionComparator() { }
+                virtual ~RocksCollectionComparator() { }
 
                 virtual int Compare( const rocksdb::Slice& a, const rocksdb::Slice& b ) const {
                     DiskLoc lhs = reinterpret_cast<const DiskLoc*>( a.data() )[0];
@@ -441,7 +444,7 @@ namespace mongo {
     }
 
     rocksdb::Comparator* RocksRecordStore::newRocksCollectionComparator() {
-        return new RocksIndexEntryComparator();
+        return new RocksCollectionComparator();
     }
 
     void RocksRecordStore::temp_cappedTruncateAfter( OperationContext* txn,
@@ -451,11 +454,13 @@ namespace mongo {
                 getIterator( txn, maxDiskLoc, false, CollectionScanParams::BACKWARD ) );
 
         while( !iter->isEOF() ) {
+            WriteUnitOfWork wu( _getRecoveryUnit( txn ) );
             DiskLoc loc = iter->getNext();
             if ( loc < end || ( !inclusive && loc == end))
                 return;
 
             deleteRecord( txn, loc );
+            wu.commit();
         }
     }
 
@@ -470,7 +475,7 @@ namespace mongo {
     DiskLoc RocksRecordStore::_nextId() {
         const uint64_t myId = _nextIdNum.fetchAndAdd(1);
         int a = myId >> 32;
-        // This masks the lowest 8 bytes of myId
+        // This masks the lowest 4 bytes of myId
         int ofs = myId & 0x00000000FFFFFFFF;
         DiskLoc loc( a, ofs );
         return loc;
@@ -534,8 +539,7 @@ namespace mongo {
 
         if ( !_forward() && !_iterator->Valid() )
             _iterator->SeekToLast();
-        else if ( !_forward() && _iterator->Valid() &&
-             reinterpret_cast<const DiskLoc*>( _iterator->key().data() )[0] != start )
+        else if ( !_forward() && _iterator->Valid() && _makeDiskLoc( _iterator->key() ) != start )
             _iterator->Prev();
 
         _checkStatus();
@@ -556,7 +560,7 @@ namespace mongo {
             return DiskLoc();
 
         rocksdb::Slice slice = _iterator->key();
-        return reinterpret_cast<const DiskLoc*>( slice.data() )[0];
+        return _makeDiskLoc( slice );
     }
 
     DiskLoc RocksRecordStore::Iterator::getNext() {

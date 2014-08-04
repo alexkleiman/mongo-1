@@ -179,12 +179,15 @@ namespace mongo {
 
         static RocksRecoveryUnit* _getRecoveryUnit( OperationContext* opCtx );
 
-        DiskLoc _makeDiskLoc( const rocksdb::Slice& slice );
+        static DiskLoc _makeDiskLoc( const rocksdb::Slice& slice );
 
         DiskLoc _nextId();
         bool cappedAndNeedDelete() const;
         void cappedDeleteAsNeeded(OperationContext* txn);
-        rocksdb::Slice _makeKey( const DiskLoc& loc ) const;
+
+        // The use of this function requires that the passed in DiskLoc outlives the returned Slice
+        // XXX possibly make this safer in the future
+        static rocksdb::Slice _makeKey( const DiskLoc& loc );
         void _changeNumRecords(OperationContext* txn, bool insert);
         void _increaseDataSize(OperationContext* txn, int amount);
 
@@ -201,7 +204,6 @@ namespace mongo {
         long long _dataSize;
         long long _numRecords;
         rocksdb::ReadOptions _defaultReadOptions;
-        mutable boost::mutex _idLock;
         mutable boost::mutex _numRecordsLock;
         mutable boost::mutex _dataSizeLock;
     };

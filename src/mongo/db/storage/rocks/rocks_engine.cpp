@@ -136,16 +136,16 @@ namespace mongo {
                                         const std::string& dbName,
                                         bool preserveClonedFilesOnFailure,
                                         bool backupOriginalFiles ) {
-        // (NO-OP) TODO
+        // TODO implement
         return Status::OK();
     }
 
     void RocksEngine::cleanShutdown(OperationContext* txn) {
         boost::mutex::scoped_lock lk( _mapLock );
-        _map = Map();
-        _collectionComparator.reset( NULL );
         _entryMap = EntryMap();
-        _db.reset( NULL );
+        _collectionComparator.reset();
+        _entryMap = EntryMap();
+        _db.reset();
     }
 
     // non public api
@@ -355,7 +355,8 @@ namespace mongo {
                                                                  &familyNames );
 
             if ( s.IsIOError() ) {
-                // DNE, ok
+                // DNE, this means the directory exists but is empty, which is fine
+                // because it means no rocks database exists yet
             } else {
                 _rock_status_ok( s );
             }
