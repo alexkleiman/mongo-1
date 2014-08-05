@@ -562,4 +562,11 @@ namespace mongo {
             }
         }
     }
+
+    Status toMongoStatus( rocksdb::Status s ) {
+        if ( s.ok() )
+            return Status::OK();
+        else
+            return Status( ErrorCodes::InternalError, s.ToString() );
+    }
 }

@@ -211,10 +211,5 @@ namespace mongo {
                              const std::vector<rocksdb::ColumnFamilyHandle*> handles );
     };
 
-    Status toMongoStatus( rocksdb::Status s ) {
-        if ( s.ok() )
-            return Status::OK();
-        else
-            return Status( ErrorCodes::InternalError(), s.ToString() );
-    };
+    Status toMongoStatus( rocksdb::Status s );
 }

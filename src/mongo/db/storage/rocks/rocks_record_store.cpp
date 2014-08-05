@@ -481,7 +481,7 @@ namespace mongo {
         return loc;
     }
 
-    rocksdb::Slice RocksRecordStore::_makeKey( const DiskLoc& loc ) const {
+    rocksdb::Slice RocksRecordStore::_makeKey( const DiskLoc& loc ) {
         return rocksdb::Slice( reinterpret_cast<const char*>( &loc ), sizeof( loc ) );
     }
 

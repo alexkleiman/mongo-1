@@ -57,7 +57,7 @@ namespace mongo {
     };
 
     // to be used in testing
-    static std::scoped_ptr<rocksdb::Comparator> _rocksComparator(
+    static boost::scoped_ptr<rocksdb::Comparator> _rocksComparator(
             RocksRecordStore::newRocksCollectionComparator() );
 
     rocksdb::ColumnFamilyOptions getColumnFamilyOptions() {
