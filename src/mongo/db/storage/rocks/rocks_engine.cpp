@@ -104,7 +104,7 @@ namespace mongo {
         std::set<std::string> dbs;
 
         // TODO: make this faster
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         for ( EntryMap::const_iterator i = _entryMap.begin(); i != _entryMap.end(); ++i ) {
             const StringData& ns = i->first;
             if ( dbs.insert( nsToDatabase( ns ) ).second )
@@ -118,7 +118,7 @@ namespace mongo {
     }
 
     int RocksEngine::flushAllFiles( bool sync ) {
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         for ( EntryMap::const_iterator i = _entryMap.begin(); i != _entryMap.end(); ++i ) {
             if ( i->second->cfHandle )
                 _db->Flush( rocksdb::FlushOptions(), i->second->cfHandle.get() );
@@ -135,7 +135,7 @@ namespace mongo {
     }
 
     void RocksEngine::cleanShutdown(OperationContext* txn) {
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         _entryMap = EntryMap();
         _db.reset( NULL );
     }
@@ -149,7 +149,7 @@ namespace mongo {
     }
 
     const RocksEngine::Entry* RocksEngine::getEntry( const StringData& ns ) const {
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         EntryMap::const_iterator i = _entryMap.find( ns );
         if ( i == _entryMap.end() )
             return NULL;
@@ -157,7 +157,7 @@ namespace mongo {
     }
 
     RocksEngine::Entry* RocksEngine::getEntry( const StringData& ns ) {
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         EntryMap::const_iterator i = _entryMap.find( ns );
         if ( i == _entryMap.end() )
             return NULL;
@@ -170,7 +170,7 @@ namespace mongo {
                                                            const boost::optional<Ordering> order ) {
         ROCKS_TRACE << "getIndexColumnFamily " << ns << "$" << indexName;
 
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         EntryMap::const_iterator i = _entryMap.find( ns );
         if ( i == _entryMap.end() )
             return NULL;
@@ -202,6 +202,7 @@ namespace mongo {
     void RocksEngine::removeColumnFamily( rocksdb::ColumnFamilyHandle** cfh,
                                             const StringData& indexName,
                                             const StringData& ns ) {
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         EntryMap::const_iterator i = _entryMap.find( ns );
         const rocksdb::Status s = _db->DropColumnFamily( *cfh );
         invariant( s.ok() );
@@ -214,7 +215,7 @@ namespace mongo {
     void RocksEngine::getCollectionNamespaces( const StringData& dbName,
                                                std::list<std::string>* out ) const {
         const string prefix = dbName.toString() + ".";
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         for (EntryMap::const_iterator i = _entryMap.begin(); i != _entryMap.end(); ++i ) {
             const StringData& ns = i->first;
             if ( !ns.startsWith( prefix ) )
@@ -230,7 +231,7 @@ namespace mongo {
 
         ROCKS_TRACE << "RocksEngine::createCollection: " << ns;
 
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         if ( _entryMap.find( ns ) != _entryMap.end() )
             return Status( ErrorCodes::NamespaceExists, "collection already exists" );
 
@@ -255,20 +256,24 @@ namespace mongo {
         const rocksdb::Slice key( "options" );
         const rocksdb::Slice value( optionsObj.objdata(), optionsObj.objsize() );
 
-        reinterpret_cast<RocksRecoveryUnit*>( txn->recoveryUnit() )->writeBatch()->Put(cf_meta,
-                                                                                       key, value);
+        dynamic_cast<RocksRecoveryUnit*>( txn->recoveryUnit() )->writeBatch()->Put(cf_meta,
+                                                                                   key,
+                                                                                   value);
 
         entry->cfHandle.reset( cf );
         entry->metaCfHandle.reset( cf_meta );
         if ( options.capped )
-            entry->recordStore.reset(
-                                    new RocksRecordStore(
-                                        ns, _db.get(), entry->cfHandle.get(), cf_meta, true,
+            entry->recordStore.reset( new RocksRecordStore(
+                                        ns,
+                                        _db.get(),
+                                        entry->cfHandle.get(),
+                                        cf_meta,
+                                        true,
                                         options.cappedSize ? options.cappedSize : 4096,
                                         options.cappedMaxDocs ? options.cappedMaxDocs : -1 ) );
         else
             entry->recordStore.reset( new RocksRecordStore(
-                                        ns, _db.get(), entry->cfHandle.get(), cf_meta ) );
+                                          ns, _db.get(), entry->cfHandle.get(), cf_meta ) );
 
         entry->collectionEntry.reset( new RocksCollectionCatalogEntry( this, ns ) );
         entry->collectionEntry->createMetaData();
@@ -278,7 +283,7 @@ namespace mongo {
     }
 
     Status RocksEngine::dropCollection( OperationContext* opCtx, const StringData& ns ) {
-        boost::mutex::scoped_lock lk( _mapLock );
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         if ( _entryMap.find( ns ) == _entryMap.end() )
             return Status( ErrorCodes::NamespaceNotFound, "can't find collection to drop" );
         Entry* entry = _entryMap[ns].get();
@@ -351,9 +356,9 @@ namespace mongo {
         return familyNames;
     }
 
-   bool RocksEngine::_isDefaultFamily( const string& name ) {
-       return name.compare( rocksdb::kDefaultColumnFamilyName ) == 0;
-   }
+    bool RocksEngine::_isDefaultFamily( const string& name ) {
+        return name == rocksdb::kDefaultColumnFamilyName;
+    }
 
     /**
      * Create Entry's for all non-index column families in the database. This method is called by
@@ -380,11 +385,13 @@ namespace mongo {
                 continue;
             }
 
-            boost::shared_ptr<Entry> entry = _entryMap[collection];
-            if ( !entry ) { entry = boost::make_shared<Entry>(); _entryMap[collection] = entry; }
+            boost::shared_ptr<Entry>& entry = _entryMap[collection];
+            invariant( !entry );
+            entry = boost::make_shared<Entry>();
 
             // We'll use this RocksCollectionCatalogEntry to open the column families representing
             // indexes
+            invariant( !entry->collectionEntry );
             entry->collectionEntry.reset( new RocksCollectionCatalogEntry( this, ns ) );
 
             entries.push_back(entry);
@@ -408,7 +415,6 @@ namespace mongo {
         // populate indexOrderings
         for ( unsigned i = 0; i < namespaces.size(); i++ ) {
             const string ns = namespaces[i];
-            StringData collection( ns );
             const size_t sepPos = ns.find( '$' );
             if ( ns.find( '&' ) != string::npos || sepPos == string::npos ) {
                 continue;
@@ -418,7 +424,7 @@ namespace mongo {
             // statement.
             invariant( !_isDefaultFamily( ns ) );
 
-            collection = ns.substr( 0, sepPos );
+            StringData collection = ns.substr( 0, sepPos );
 
             boost::shared_ptr<Entry> entry = _entryMap[collection];
             if ( !entry ) { entry = boost::make_shared<Entry>(); _entryMap[collection] = entry; }
@@ -498,7 +504,7 @@ namespace mongo {
                 continue;
             }
 
-            StringData collection( ns );
+            StringData collection = ns;
 
             const size_t sepPos = ns.find( '$' );
 

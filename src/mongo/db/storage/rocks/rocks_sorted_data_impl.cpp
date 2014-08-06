@@ -126,7 +126,7 @@ namespace mongo {
             }
 
             void aboutToDeleteBucket(const DiskLoc& bucket) {
-                // don't know if I need this or not
+                invariant( !"aboutToDeleteBucket should never be called from RocksSortedDataImpl" );
             }
 
             bool locate(const BSONObj& key, const DiskLoc& loc) {
@@ -177,10 +177,6 @@ namespace mongo {
                 advanceTo( keyBegin, keyBeginLen, afterVersion, keyEnd, keyEndInclusive );
             }
 
-            /**
-             * Return OK if it's not
-             * Otherwise return a status that can be displayed
-             */
             BSONObj getKey() const {
                 _load();
                 return _cachedKey;

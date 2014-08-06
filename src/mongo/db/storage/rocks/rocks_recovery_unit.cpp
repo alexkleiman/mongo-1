@@ -58,7 +58,6 @@ namespace mongo {
     }
 
     void RocksRecoveryUnit::beginUnitOfWork() {
-        // TODO no need to initialize _writeBatch here so long as it is lazily initialized
         _depth++;
     }
     void RocksRecoveryUnit::commitUnitOfWork() {
@@ -78,6 +77,7 @@ namespace mongo {
             invariant( !"rocks write batch commit failed" );
         }
 
+        // XXX change to _writeBatch->Clear() (easy!)
         _writeBatch.reset( new rocksdb::WriteBatch() );
 
     }
@@ -121,7 +121,6 @@ namespace mongo {
     // which does not require write batches
     rocksdb::WriteBatch* RocksRecoveryUnit::writeBatch() {
         if ( !_writeBatch ) {
-            // XXX change to _writeBatch->Clear() everywhere
             _writeBatch.reset( new rocksdb::WriteBatch() );
         }
 

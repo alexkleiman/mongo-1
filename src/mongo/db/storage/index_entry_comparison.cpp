@@ -63,7 +63,11 @@ namespace mongo {
             const BSONElement r = rhsIt.next();
 
             if (int cmp = l.woCompare(r, /*compareFieldNames=*/false)) {
-                invariant(cmp != std::numeric_limits<int>::min()); // can't be negated
+                if (cmp == std::numeric_limits<int>::min()) {
+                  // can't be negated, so return -1
+                  return -1;  
+                }
+
                 return _order.descending(mask) ? -cmp : cmp;
             }
 
@@ -104,7 +108,6 @@ namespace mongo {
                                                         const vector<bool>& suffixInclusive,
                                                         const int cursorDirection) {
 
-        // Please read the comments in the header file to see why this is done.
         // The basic idea is that we use the field name to store a byte which indicates whether
         // each field in the query object is inclusive and exclusive, and if it is exclusive, in
         // which direction.
@@ -130,27 +133,13 @@ namespace mongo {
             }
         }
 
-        // have we seen a field in the query object that represents an exclusve bound (i.e., have we
-        // inserted an 'l' or a 'g' into a field name already).
-        bool seenExclusive = prefixExclusive;
-
         // Handle the suffix. Note that the useful parts of the suffix start at index prefixLen
         // rather than at 0.
         invariant(keySuffix.size() == suffixInclusive.size());
         for (size_t i = prefixLen; i < keySuffix.size(); i++) {
-            // if an exclusive field has already been encountered, then nothing after it matters
-            // and the rest of the elements in the vector can be NULL. We want the query object
-            // to have as many elements as the vector, so we append empty elements to the BSON when
-            // we encounter NULL vector elements.
-            if (!keySuffix[i]) {
-                invariant(seenExclusive);
-                bb.append(StringData(), false);
-            }
-            else if (suffixInclusive[i]) {
-                seenExclusive = true;
+            if (suffixInclusive[i]) {
                 bb.appendAs(*keySuffix[i], StringData());
-            }
-            else {
+            } else {
                 bb.appendAs(*keySuffix[i], exclusiveFieldName);
             }
         }

@@ -38,9 +38,8 @@
 namespace mongo {
 
     /**
-     * This represents a single item in an index. This is intended to (possibly) be used by
-     * implementations of the SortedDataInterface interface. An index item simply consists of a key
-     * and a disk location, but this could be subclassed to perform more complex tasks.
+     * Represents a single item in an index. An index item simply consists of a key
+     * and a disk location.
      */
     struct IndexKeyEntry {
         IndexKeyEntry(const BSONObj& key, DiskLoc loc) :key(key), loc(loc) {}
@@ -65,11 +64,11 @@ namespace mongo {
         /**
          * Returns -1 if lhs < rhs, 1 if lhs > rhs, and 0 otherwise.
          *
-         * This function compares two IndexKeyEntry objects which have been stripped of their field
-         * names. Either lhs or rhs can represent the lower bound of a query, meaning that either
-         * lhs or rhs can be the result of a call to makeQueryObject(). At most one can be a query
-         * object. The comparison function compares the BSONObjects in each IndexKeyEntry, and uses
-         * the DiskLoc's as a tiebreaker.
+         * This function compares two IndexKeyEntry objects whose field names have special meaning
+         * (explained momentarily). Either lhs or rhs can represent a bound of a query, meaning that
+         * either lhs or rhs can be the result of a call to makeQueryObject(). At most one can be a
+         * query object. The comparison function compares the BSONObjects in each IndexKeyEntry, and
+         * uses the DiskLoc's as a tiebreaker.
          *
          * Ex: {"": 5, "": "foo"} > {"": 4, "": "foo"}
          *     {"": 5, "": "foo"} < {"": 5, "": "zzz"}

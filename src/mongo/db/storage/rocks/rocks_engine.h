@@ -90,10 +90,6 @@ namespace mongo {
                                        bool preserveClonedFilesOnFailure = false,
                                        bool backupOriginalFiles = false );
 
-        /**
-         * This executes a shutdown in rocks, so this rocksdb must not be used after this call
-         * MongoDB will not call into the storage subsystem after calling this function
-         */
         virtual void cleanShutdown(OperationContext* txn);
 
         // rocks specific api
@@ -160,9 +156,8 @@ namespace mongo {
         std::string _path;
         boost::scoped_ptr<rocksdb::DB> _db;
 
-        // TODO rename
         typedef StringMap< boost::shared_ptr<Entry> > EntryMap;
-        mutable boost::mutex _mapLock;
+        mutable boost::mutex _entryMapMutex;
         EntryMap _entryMap;
 
         // private methods that should usually only be called from the RocksEngine constructor
@@ -195,9 +190,9 @@ namespace mongo {
                                 const std::map<std::string, Ordering>& indexOrderings );
 
         /**
-         * Create a complete Entry object in _entryMap for every ColumnFamilyDescriptor. Assumes that, if
-         * the collectionEntry field should be initialized, that is already has been prior to this
-         * function call.
+         * Create a complete Entry object in _entryMap for every ColumnFamilyDescriptor. Assumes
+         * that, if the collectionEntry field should be initialized, that is already has been prior
+         * to this function call.
          *
          * @param families A vector of column family descriptors for every column family in the
          * database
