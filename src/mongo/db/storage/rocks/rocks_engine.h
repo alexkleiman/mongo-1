@@ -40,6 +40,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 
+#include <rocksdb/status.h>
 
 #include "mongo/base/disallow_copying.h"
 #include "mongo/bson/ordering.h"
@@ -51,7 +52,7 @@ namespace rocksdb {
     struct ColumnFamilyDescriptor;
     struct ColumnFamilyOptions;
     class DB;
-    class Status;
+    class Comparator;
     struct Options;
     struct ReadOptions;
 }
@@ -134,6 +135,7 @@ namespace mongo {
             boost::scoped_ptr<RocksRecordStore> recordStore;
             // These ColumnFamilyHandles must be deleted by removeIndex
             StringMap<boost::shared_ptr<rocksdb::ColumnFamilyHandle>> indexNameToCF;
+            StringMap<boost::shared_ptr<const rocksdb::Comparator>> indexNameToComparator;
         };
 
         Entry* getEntry( const StringData& ns );
@@ -155,6 +157,7 @@ namespace mongo {
 
         std::string _path;
         boost::scoped_ptr<rocksdb::DB> _db;
+        boost::scoped_ptr<rocksdb::Comparator> _collectionComparator;
 
         typedef StringMap< boost::shared_ptr<Entry> > EntryMap;
         mutable boost::mutex _entryMapMutex;
@@ -202,4 +205,6 @@ namespace mongo {
         void _createEntries( const CfdVector& families,
                              const std::vector<rocksdb::ColumnFamilyHandle*> handles );
     };
+
+    Status toMongoStatus( rocksdb::Status s );
 }
