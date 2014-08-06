@@ -61,6 +61,7 @@ namespace mongo {
 
         bool operator() (const IndexKeyEntry& lhs, const IndexKeyEntry& rhs) const;
 
+        // TODO speak to Mathias about improving this comment
         /**
          * Returns -1 if lhs < rhs, 1 if lhs > rhs, and 0 otherwise.
          *

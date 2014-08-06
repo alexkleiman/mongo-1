@@ -92,8 +92,6 @@ namespace mongo {
 
         invariant( handles.size() == families.size() );
 
-        
-
         // Create an Entry object for every ColumnFamilyHandle
         _createEntries( families, handles );
     }
@@ -418,6 +416,7 @@ namespace mongo {
                                                               const string& filepath ) {
         // open the default column families so that we can retrieve information about
         // each index, which is needed in order to open the index column families
+        // TODO figure out a way not to use _db here
         rocksdb::DB* dbPtr;
         rocksdb::Status status = rocksdb::DB::OpenForReadOnly( dbOptions(), filepath, &dbPtr );
         _db.reset( dbPtr );
