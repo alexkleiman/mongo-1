@@ -67,6 +67,81 @@ namespace mongo {
         virtual void syncDataAndTruncateJournal() {}
 
         bool rollbackPossible;
+
+    private:
+        bool _inUnitOfWork;
+
+        typedef boost::shared_ptr<HeapStoreChange> changePtr;
+
+        // a stack of changes made. All changes will be undone during a rollback
+        stack<changePtr> _changes;
+
+        // Private classes that we will use
+
+        /**
+         * A simple container interface to describe an operation which modifies a
+         * HeapRecordStore. It holds:
+         */
+        class HeapStoreChange {
+            MONGO_DISALLOW_COPYING(HeapStoreChange);
+        protected:
+            HeapStoreChange(DiskLoc loc, HeapRecordStore* hrs): _loc(loc), _hrs(hrs) { }
+            virtual ~HeapStoreChange(){ }
+
+        protected:
+            const DiskLoc _loc;
+
+            // Not owned by this class, but rather, just holding a pointer.
+            // The pointer must outlive this class.
+            HeapRecordStore* _hrs;
+
+        public:
+            /**
+             * Undo the change that this class represents
+             */
+            virtual void undo() = 0;
+        };
+
+        /**
+         * Represents an insertion made to a HeapRecordStore
+         */
+        class HeapStoreInsert : public HeapStoreChange {
+            MONGO_DISALLOW_COPYING(HeapStoreInsert);
+        public:
+            HeapStoreInsert(const DiskLoc loc, HeapRecordStore* hrs): HeapStoreChange(loc, hrs) { }
+
+            void undo();
+        };
+
+        /**
+         * Represents a delete made to a HeapRecordStore
+         */
+        class HeapStoreDelete : public HeapStoreChange {
+            MONGO_DISALLOW_COPYING(HeapStoreDelete);
+        private:
+            boost::shared_array<char> const _rec;
+
+        public:
+            HeapStoreDelete(const DiskLoc loc, HeapRecordStore* hrs, boost::shared_array<char> rec):
+                HeapStoreChange(loc, hrs), _rec(rec) { }
+
+            void undo();
+        };
+
+        /**
+         * Represents an update made to a HeapRecordStore
+         */
+        class HeapStoreUpdate : public HeapStoreChange {
+            MONGO_DISALLOW_COPYING(HeapStoreUpdate);
+        private:
+            boost::shared_array<char> _rec;
+
+        public:
+            HeapStoreUpdate(const DiskLoc loc, HeapRecordStore* hrs,
+                    const boost::shared_array<char> data);
+
+            void undo();
+        };
     };
 
 }

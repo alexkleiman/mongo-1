@@ -40,116 +40,138 @@ using namespace mongo;
 
 namespace {
 
+    // allows us to declare StatusWith's without assigning them a real value
+    DiskLoc dummyDiskLoc;
+    StatusWith<DiskLoc> dummyStatusWith(dummyDiskLoc);
+
     TEST(HeapRecordStore, FullSimpleInsert1) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+            StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
 
-        ASSERT_TRUE(result.isOK());
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
+            ASSERT_TRUE(result.isOK());
+            Record* record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
+        }
     }
 
     TEST(HeapRecordStore, FullSimpleDelete1) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(result.isOK());
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
-        ASSERT_EQUALS(rs.dataSize(), record->netLength());
-        ASSERT_EQUALS(rs.numRecords(), 1);
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        rs.deleteRecord(&txn, result.getValue()); 
-        ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
-        ASSERT_EQUALS(rs.dataSize(), 0);
-        ASSERT_EQUALS(rs.numRecords(), 0);
+            StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(result.isOK());
+            Record* record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
+            ASSERT_EQUALS(rs.dataSize(), record->netLength());
+            ASSERT_EQUALS(rs.numRecords(), 1);
+
+            rs.deleteRecord(&txn, result.getValue());
+            ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
+            ASSERT_EQUALS(rs.dataSize(), 0);
+            ASSERT_EQUALS(rs.numRecords(), 0);
+        }
     }
 
-    TEST(HeapRecordStore, UpdateSmaller1)
-    {
+    TEST(HeapRecordStore, UpdateSmaller1) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(result.isOK());
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+            StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(result.isOK());
+            Record* record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
 
-        StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 1000, NULL);
-        ASSERT_TRUE(result2.isOK());
-        Record* record2 = rs.recordFor(result2.getValue());
-        ASSERT_EQUALS(string("a"), string(record2->data()));
-
+            StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 1000, NULL);
+            ASSERT_TRUE(result2.isOK());
+            Record* record2 = rs.recordFor(result2.getValue());
+            ASSERT_EQUALS(string("a"), string(record2->data()));
+        }
     }
 
-    TEST(HeapRecordStore, UpdateLarger1)
-    {
+    TEST(HeapRecordStore, UpdateLarger1) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(result.isOK());
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), 
-                                                        "abcdef", 7, 1000, NULL);
-        ASSERT_TRUE(result2.isOK());
-        Record* record2 = rs.recordFor(result2.getValue());
-        ASSERT_EQUALS(string("abcdef"), string(record2->data()));
+            StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(result.isOK());
+            Record* record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
+
+            StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(),
+                    "abcdef", 7, 1000, NULL);
+            ASSERT_TRUE(result2.isOK());
+            Record* record2 = rs.recordFor(result2.getValue());
+            ASSERT_EQUALS(string("abcdef"), string(record2->data()));
+        }
     }
 
-    TEST(HeapRecordStore, MultipleUpdateLarge)
-    {
+    TEST(HeapRecordStore, MultipleUpdateLarge) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        const int large_data_length = 1000 * 1000;
-        char large_data[large_data_length];
-        for (int i = 0; i < large_data_length; i++)
-            large_data[i] = i % 255;
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+
+            const int large_data_length = 1000 * 1000;
+            char large_data[large_data_length];
+            for (int i = 0; i < large_data_length; i++)
+                large_data[i] = i % 255;
 
 
-        const int original_data_length = 1000;
-        char original_data[original_data_length];
-        for (int i = 0; i < original_data_length; i++)
-            original_data[i] = i % 255;
+            const int original_data_length = 1000;
+            char original_data[original_data_length];
+            for (int i = 0; i < original_data_length; i++)
+                original_data[i] = i % 255;
 
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, original_data, 
-                                        original_data_length + 1, 1000);
-        ASSERT_TRUE(result.isOK());
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(original_data, string(record->data()));
+            StatusWith<DiskLoc> result = rs.insertRecord(&txn, original_data,
+                    original_data_length + 1, 1000);
+            ASSERT_TRUE(result.isOK());
+            Record* record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(original_data, string(record->data()));
 
-        StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 1000, NULL);
-        ASSERT_TRUE(result2.isOK());
-        Record* record2 = rs.recordFor(result2.getValue());
-        ASSERT_EQUALS(string("a"), string(record2->data()));
+            StatusWith<DiskLoc> result2 = rs.updateRecord(&txn, result.getValue(), "a", 2, 1000,
+                    NULL);
+            ASSERT_TRUE(result2.isOK());
+            Record* record2 = rs.recordFor(result2.getValue());
+            ASSERT_EQUALS(string("a"), string(record2->data()));
 
-        StatusWith<DiskLoc> result3 = rs.updateRecord(&txn, result.getValue(), large_data, 
-                                                        large_data_length + 1, 1000, NULL);
-        ASSERT_TRUE(result3.isOK());
-        Record* record3 = rs.recordFor(result3.getValue());
-        ASSERT_EQUALS(large_data, string(record3->data()));
+            StatusWith<DiskLoc> result3 = rs.updateRecord(&txn, result.getValue(), large_data,
+                    large_data_length + 1, 1000, NULL);
+            ASSERT_TRUE(result3.isOK());
+            Record* record3 = rs.recordFor(result3.getValue());
+            ASSERT_EQUALS(large_data, string(record3->data()));
+        }
     }
 
     TEST(HeapRecordStore, RollbackSingleInsertion) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        StatusWith<DiskLoc> result = dummyStatusWith;
+        Record* record;
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000); 
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
-        ASSERT_EQUALS(rs.dataSize(), record->netLength());
-        ASSERT_EQUALS(rs.numRecords(), 1);
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        wu._ru->endUnitOfWork();
+            result = rs.insertRecord(&txn, "abc", 4, 1000);
+            record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
+            ASSERT_EQUALS(rs.dataSize(), record->netLength());
+            ASSERT_EQUALS(rs.numRecords(), 1);
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
         ASSERT_EQUALS(rs.dataSize(), 0);
@@ -160,16 +182,20 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        StatusWith<DiskLoc> result = dummyStatusWith;
+        Record* record;
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000); 
-        Record* record = rs.recordFor(result.getValue());
-        ASSERT_EQUALS(string("abc"), string(record->data()));
-        ASSERT_EQUALS(rs.dataSize(), record->netLength());
-        ASSERT_EQUALS(rs.numRecords(), 1);
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        wu.commit();
-        wu._ru->endUnitOfWork();
+            result = rs.insertRecord(&txn, "abc", 4, 1000);
+            record = rs.recordFor(result.getValue());
+            ASSERT_EQUALS(string("abc"), string(record->data()));
+            ASSERT_EQUALS(rs.dataSize(), record->netLength());
+            ASSERT_EQUALS(rs.numRecords(), 1);
+
+            wu.commit();
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         Record* newRecord = rs.recordFor(result.getValue());
         ASSERT_EQUALS(string("abc"), string(newRecord->data()));
@@ -181,38 +207,46 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(result.isOK());
+        StatusWith<DiskLoc> result = dummyStatusWith;
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        rs.deleteRecord(&txn, result.getValue()); 
-        ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
-        ASSERT_EQUALS(rs.dataSize(), 0);
-        ASSERT_EQUALS(rs.numRecords(), 0);
+            result = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(result.isOK());
 
-        wu._ru->endUnitOfWork();
+            wu.commit();
+
+            rs.deleteRecord(&txn, result.getValue());
+            ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
+            ASSERT_EQUALS(rs.dataSize(), 0);
+            ASSERT_EQUALS(rs.numRecords(), 0);
+
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         ASSERT_TRUE(rs.hasRecordFor(result.getValue()));
         Record* record = rs.recordFor(result.getValue());
         ASSERT_EQUALS(string("abc"), string(record->data()));
         ASSERT_EQUALS(rs.dataSize(), record->netLength());
         ASSERT_EQUALS(rs.numRecords(), 1);
-    } 
+    }
 
     TEST(HeapRecordStore, CommitSingleDeletion) {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> result = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(result.isOK());
+        StatusWith<DiskLoc> result = dummyStatusWith;
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+            result = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(result.isOK());
 
-        rs.deleteRecord(&txn, result.getValue()); 
+            wu.commit();
 
-        wu.commit();
-        wu._ru->endUnitOfWork();
+            rs.deleteRecord(&txn, result.getValue());
+            wu.commit();
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         ASSERT_FALSE(rs.hasRecordFor(result.getValue()));
         ASSERT_EQUALS(rs.dataSize(), 0);
@@ -223,29 +257,28 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> insertResult = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(insertResult.isOK());
+        StatusWith<DiskLoc> insertResult = dummyStatusWith;
+        StatusWith<DiskLoc> updateResult = dummyStatusWith;
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+            insertResult = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(insertResult.isOK());
 
-        StatusWith<DiskLoc> updateResult = rs.updateRecord(&txn,
-                                                           insertResult.getValue(),
-                                                           "def",
-                                                           4,
-                                                           1000,
-                                                           NULL);
+            wu.commit();
 
-        ASSERT_TRUE(updateResult.isOK());
-        Record* record = rs.recordFor(updateResult.getValue());
-        ASSERT_EQUALS(string("def"), string(record->data()));
+            updateResult = rs.updateRecord(&txn, insertResult.getValue(), "def", 4, 1000, NULL);
 
-        wu._ru->endUnitOfWork();
+            ASSERT_TRUE(updateResult.isOK());
+            Record* record = rs.recordFor(updateResult.getValue());
+            ASSERT_EQUALS(string("def"), string(record->data()));
 
-        //TODO see if we can make any stronger assumptions about the locs in use after the rollback
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
+
         Record* newRecord = rs.recordFor(insertResult.getValue());
         ASSERT_EQUALS(string("abc"), string(newRecord->data()));
         ASSERT_EQUALS(rs.numRecords(), 1);
-        ASSERT_TRUE(insertResult.getValue() == updateResult.getValue() 
+        ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                 || !rs.hasRecordFor(updateResult.getValue()));
     }
 
@@ -253,29 +286,29 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        StatusWith<DiskLoc> insertResult = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(insertResult.isOK());
+        StatusWith<DiskLoc> insertResult = dummyStatusWith;
+        StatusWith<DiskLoc> updateResult = dummyStatusWith;
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
+            insertResult = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(insertResult.isOK());
 
-        StatusWith<DiskLoc> updateResult = rs.updateRecord(&txn,
-                                                           insertResult.getValue(),
-                                                           "def",
-                                                           4,
-                                                           1000,
-                                                           NULL);
+            wu.commit();
 
-        ASSERT_TRUE(updateResult.isOK());
-        Record* record = rs.recordFor(updateResult.getValue());
-        ASSERT_EQUALS(string("def"), string(record->data()));
+            updateResult = rs.updateRecord(&txn, insertResult.getValue(), "def", 4, 1000, NULL);
 
-        wu.commit();
-        wu._ru->endUnitOfWork();
+            ASSERT_TRUE(updateResult.isOK());
+            Record* record = rs.recordFor(updateResult.getValue());
+            ASSERT_EQUALS(string("def"), string(record->data()));
+
+            wu.commit();
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         // make sure that the update persisted
         Record* updatedRecord = rs.recordFor(updateResult.getValue());
         ASSERT_EQUALS(string("def"), string(updatedRecord->data()));
-        ASSERT_TRUE(insertResult.getValue() == updateResult.getValue() 
+        ASSERT_TRUE(insertResult.getValue() == updateResult.getValue()
                 || !rs.hasRecordFor(insertResult.getValue()));
     }
 
@@ -283,58 +316,70 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> thirdInsertResult = dummyStatusWith;
+        Record* record;
+        StatusWith<DiskLoc> fourthInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> firstUpdateResult = dummyStatusWith;
+        StatusWith<DiskLoc> secondUpdateResult = dummyStatusWith;
 
-        // insert three records and commit
-        StatusWith<DiskLoc> firstInsertResult = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(firstInsertResult.isOK());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        StatusWith<DiskLoc> secondInsertResult = rs.insertRecord(&txn, "123", 4, 1000);
-        ASSERT_TRUE(secondInsertResult.isOK());
+            // insert three records and commit
+            firstInsertResult = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(firstInsertResult.isOK());
 
-        StatusWith<DiskLoc> thirdInsertResult = rs.insertRecord(&txn, "xyz", 4, 1000);
-        ASSERT_TRUE(thirdInsertResult.isOK());
+            secondInsertResult = rs.insertRecord(&txn, "123", 4, 1000);
+            ASSERT_TRUE(secondInsertResult.isOK());
 
-        wu.commit();
+            thirdInsertResult = rs.insertRecord(&txn, "xyz", 4, 1000);
+            ASSERT_TRUE(thirdInsertResult.isOK());
 
-        // delete the first and third records, and commit
-        rs.deleteRecord(&txn, thirdInsertResult.getValue());
-        rs.deleteRecord(&txn, firstInsertResult.getValue());
+            wu.commit();
 
-        wu.commit();
+            // delete the first and third records, and commit
+            rs.deleteRecord(&txn, thirdInsertResult.getValue());
+            rs.deleteRecord(&txn, firstInsertResult.getValue());
 
-        // make sure that the first and third records are gone, and that the second is still there
-        ASSERT_FALSE(rs.hasRecordFor(firstInsertResult.getValue()));
-        ASSERT_FALSE(rs.hasRecordFor(thirdInsertResult.getValue()));
-        ASSERT_TRUE(rs.hasRecordFor(secondInsertResult.getValue()));
-        Record* record = rs.recordFor(secondInsertResult.getValue());
-        ASSERT_EQUALS(string("123"), string(record->data()));
+            wu.commit();
 
-        // insert a fourth record
-        StatusWith<DiskLoc> fourthInsertResult = rs.insertRecord(&txn, "789", 4, 1000);
-        ASSERT_TRUE(fourthInsertResult.isOK());
+            // make sure that the first and third records are gone, and that the second is still
+            // there
+            ASSERT_FALSE(rs.hasRecordFor(firstInsertResult.getValue()));
+            ASSERT_FALSE(rs.hasRecordFor(thirdInsertResult.getValue()));
+            ASSERT_TRUE(rs.hasRecordFor(secondInsertResult.getValue()));
+            record = rs.recordFor(secondInsertResult.getValue());
+            ASSERT_EQUALS(string("123"), string(record->data()));
 
-        // update the two remaining records and commit
-        StatusWith<DiskLoc> firstUpdateResult = rs.updateRecord(&txn,
-                                                                secondInsertResult.getValue(),
-                                                                "321",
-                                                                4,
-                                                                1000,
-                                                                NULL);
+            // insert a fourth record
+            fourthInsertResult = rs.insertRecord(&txn, "789", 4, 1000);
+            ASSERT_TRUE(fourthInsertResult.isOK());
+
+            // update the two remaining records and commit
+            firstUpdateResult = rs.updateRecord(&txn,
+                                                secondInsertResult.getValue(),
+                                                "321",
+                                                4,
+                                                1000,
+                                                NULL);
 
 
-        StatusWith<DiskLoc> secondUpdateResult = rs.updateRecord(&txn,
-                                                                 fourthInsertResult.getValue(),
-                                                                 "987",
-                                                                 4,
-                                                                 1000,
-                                                                 NULL);
+            secondUpdateResult = rs.updateRecord(&txn,
+                                                 fourthInsertResult.getValue(),
+                                                 "987",
+                                                 4,
+                                                 1000,
+                                                 NULL);
 
-        wu.commit();
+            wu.commit();
+
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         // make sure that the two updates worked and persisted, and that everything is in order
         ASSERT_TRUE(firstUpdateResult.isOK());
-        ASSERT_TRUE(secondUpdateResult.isOK()); 
+        ASSERT_TRUE(secondUpdateResult.isOK());
 
         Record* firstUpdatedRecord = rs.recordFor(firstUpdateResult.getValue());
         Record* secondUpdatedRecord = rs.recordFor(secondUpdateResult.getValue());
@@ -343,7 +388,7 @@ namespace {
         ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
 
         ASSERT_EQUALS(rs.numRecords(), 2);
-        ASSERT_EQUALS(rs.dataSize(), 
+        ASSERT_EQUALS(rs.dataSize(),
                 firstUpdatedRecord->netLength() + secondUpdatedRecord->netLength());
     }
 
@@ -351,25 +396,30 @@ namespace {
         OperationContextHeap txn;
         HeapRecordStore rs("heaptest.foo", false, -1, -1, NULL);
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> thirdInsertResult = dummyStatusWith;
 
-        // insert three records and commit
-        StatusWith<DiskLoc> firstInsertResult = rs.insertRecord(&txn, "abc", 4, 1000);
-        ASSERT_TRUE(firstInsertResult.isOK());
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        StatusWith<DiskLoc> secondInsertResult = rs.insertRecord(&txn, "123", 4, 1000);
-        ASSERT_TRUE(secondInsertResult.isOK());
+            // insert three records and commit
+            firstInsertResult = rs.insertRecord(&txn, "abc", 4, 1000);
+            ASSERT_TRUE(firstInsertResult.isOK());
 
-        StatusWith<DiskLoc> thirdInsertResult = rs.insertRecord(&txn, "xyz", 4, 1000);
-        ASSERT_TRUE(thirdInsertResult.isOK());
+            secondInsertResult = rs.insertRecord(&txn, "123", 4, 1000);
+            ASSERT_TRUE(secondInsertResult.isOK());
 
-        wu.commit();
+            thirdInsertResult = rs.insertRecord(&txn, "xyz", 4, 1000);
+            ASSERT_TRUE(thirdInsertResult.isOK());
 
-        // delete the first and third records, and roll it back
-        rs.deleteRecord(&txn, thirdInsertResult.getValue());
-        rs.deleteRecord(&txn, firstInsertResult.getValue());
+            wu.commit();
 
-        wu._ru->endUnitOfWork();
+            // delete the first and third records, and roll it back
+            rs.deleteRecord(&txn, thirdInsertResult.getValue());
+            rs.deleteRecord(&txn, firstInsertResult.getValue());
+
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         // make sure everything is still there
         ASSERT_EQUALS(rs.numRecords(), 3);
@@ -386,44 +436,48 @@ namespace {
 
         // insert a fourth record, delete the first and third record, update the remaining two,
         // and roll it all back
-        WriteUnitOfWork secondWu(txn.recoveryUnit());
+        StatusWith<DiskLoc> fourthInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> firstUpdateResult = dummyStatusWith; 
+        StatusWith<DiskLoc> secondUpdateResult = dummyStatusWith; 
 
-        StatusWith<DiskLoc> fourthInsertResult = rs.insertRecord(&txn, "789", 4, 1000);
-        ASSERT_TRUE(fourthInsertResult.isOK());
+        {
+            WriteUnitOfWork secondWu(txn.recoveryUnit());
 
-        rs.deleteRecord(&txn, thirdInsertResult.getValue());
-        rs.deleteRecord(&txn, firstInsertResult.getValue());
+            fourthInsertResult = rs.insertRecord(&txn, "789", 4, 1000);
+            ASSERT_TRUE(fourthInsertResult.isOK());
 
-        StatusWith<DiskLoc> firstUpdateResult = rs.updateRecord(&txn,
-                                                                secondInsertResult.getValue(),
-                                                                "321",
-                                                                4,
-                                                                1000,
-                                                                NULL);
+            rs.deleteRecord(&txn, thirdInsertResult.getValue());
+            rs.deleteRecord(&txn, firstInsertResult.getValue());
 
+            firstUpdateResult = rs.updateRecord(&txn,
+                                                                    secondInsertResult.getValue(),
+                                                                    "321",
+                                                                    4,
+                                                                    1000,
+                                                                    NULL);
 
-        StatusWith<DiskLoc> secondUpdateResult = rs.updateRecord(&txn,
-                                                                 fourthInsertResult.getValue(),
-                                                                 "987",
-                                                                 4,
-                                                                 1000,
-                                                                 NULL);
+            secondUpdateResult = rs.updateRecord(&txn,
+                                                                     fourthInsertResult.getValue(),
+                                                                     "987",
+                                                                     4,
+                                                                     1000,
+                                                                     NULL);
 
-        // before rolling back, make sure that all of these operations worked
-        ASSERT_TRUE(firstUpdateResult.isOK());
-        ASSERT_TRUE(secondUpdateResult.isOK()); 
+            // before rolling back, make sure that all of these operations worked
+            ASSERT_TRUE(firstUpdateResult.isOK());
+            ASSERT_TRUE(secondUpdateResult.isOK());
 
-        Record* firstUpdatedRecord = rs.recordFor(firstUpdateResult.getValue());
-        Record* secondUpdatedRecord = rs.recordFor(secondUpdateResult.getValue());
+            Record* firstUpdatedRecord = rs.recordFor(firstUpdateResult.getValue());
+            Record* secondUpdatedRecord = rs.recordFor(secondUpdateResult.getValue());
 
-        ASSERT_EQUALS(string("321"), string(firstUpdatedRecord->data()));
-        ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
+            ASSERT_EQUALS(string("321"), string(firstUpdatedRecord->data()));
+            ASSERT_EQUALS(string("987"), string(secondUpdatedRecord->data()));
 
-        ASSERT_EQUALS(rs.numRecords(), 2);
-        ASSERT_EQUALS(rs.dataSize(), 
-                firstUpdatedRecord->netLength() + secondUpdatedRecord->netLength());
+            ASSERT_EQUALS(rs.numRecords(), 2);
+            ASSERT_EQUALS(rs.dataSize(),
+                    firstUpdatedRecord->netLength() + secondUpdatedRecord->netLength());
 
-        secondWu._ru->endUnitOfWork();
+        } // calls secondWu's destructor, equivalent to saying secondWu._ru->endUnitOfWork();
 
         // make sure everything was rolled back properly
         Record* firstNewRecord = rs.recordFor(firstInsertResult.getValue());
@@ -445,17 +499,21 @@ namespace {
         HeapRecordStore secondRs("heaptest.foo", false, -1, -1, NULL);
         HeapRecordStore thirdRs("heaptest.foo", false, -1, -1, NULL);
 
-        WriteUnitOfWork wu(txn.recoveryUnit());
+        StatusWith<DiskLoc> firstInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> secondInsertResult = dummyStatusWith;
+        StatusWith<DiskLoc> thirdInsertResult = dummyStatusWith;
 
-        StatusWith<DiskLoc> firstInsertResult = firstRs.insertRecord(&txn, "abc", 4, 1000);
-        StatusWith<DiskLoc> secondInsertResult = secondRs.insertRecord(&txn, "abc", 4, 1000);
-        StatusWith<DiskLoc> thirdInsertResult = thirdRs.insertRecord(&txn, "abc", 4, 1000);
+        {
+            WriteUnitOfWork wu(txn.recoveryUnit());
 
-        ASSERT_TRUE(firstInsertResult.isOK());
-        ASSERT_TRUE(secondInsertResult.isOK());
-        ASSERT_TRUE(thirdInsertResult.isOK());
+            firstInsertResult = firstRs.insertRecord(&txn, "abc", 4, 1000);
+            secondInsertResult = secondRs.insertRecord(&txn, "abc", 4, 1000);
+            thirdInsertResult = thirdRs.insertRecord(&txn, "abc", 4, 1000);
 
-        wu._ru->endUnitOfWork();
+            ASSERT_TRUE(firstInsertResult.isOK());
+            ASSERT_TRUE(secondInsertResult.isOK());
+            ASSERT_TRUE(thirdInsertResult.isOK());
+        } // calls wu's destructor, equivalent to saying wu._ru->endUnitOfWork();
 
         ASSERT_FALSE(firstRs.hasRecordFor(firstInsertResult.getValue()));
         ASSERT_FALSE(secondRs.hasRecordFor(secondInsertResult.getValue()));
