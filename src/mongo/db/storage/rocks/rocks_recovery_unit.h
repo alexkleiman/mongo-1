@@ -31,9 +31,11 @@
 #pragma once
 
 #include <map>
+#include <stack>
 #include <string>
 
 #include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
 
 #include "mongo/base/disallow_copying.h"
 #include "mongo/db/storage/recovery_unit.h"
@@ -84,6 +86,8 @@ namespace mongo {
 
         // bare because we need to call ReleaseSnapshot when we're done with this
         const rocksdb::Snapshot* _snapshot; // owned
+
+        std::stack< boost::shared_ptr<RecoveryUnit::Change> > _changes;
     };
 
 }
