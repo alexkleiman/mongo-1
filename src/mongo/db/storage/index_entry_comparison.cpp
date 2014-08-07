@@ -64,7 +64,8 @@ namespace mongo {
 
             if (int cmp = l.woCompare(r, /*compareFieldNames=*/false)) {
                 if(cmp == std::numeric_limits<int>::min()) {
-                    return -1; // can't be negated
+                    // can't be negated, so return -1
+                    return -1;
                 }
 
                 return _order.descending(mask) ? -cmp : cmp;
