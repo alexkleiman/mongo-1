@@ -127,6 +127,10 @@ namespace mongo {
         return _writeBatch.get();
     }
 
+    void RocksRecoveryUnit::registerChange(Change* change) {
+        // TODO implement
+    }
+
     // XXX lazily initialized for now
     // This is lazily initialized for simplicity so long as we still
     // have database-level locking. If a method needs to access the snapshot,

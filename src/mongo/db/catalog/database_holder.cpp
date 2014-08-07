@@ -55,12 +55,12 @@ namespace mongo {
     }
 
     Database* DatabaseHolder::get(OperationContext* txn,
-                                  const std::string& ns) const {
+                                  const StringData& ns) const {
 
         txn->lockState()->assertAtLeastReadLocked(ns);
 
         SimpleMutex::scoped_lock lk(_m);
-        const std::string db = _todb( ns );
+        const StringData db = _todb( ns );
         DBs::const_iterator it = _dbs.find(db);
         if ( it != _dbs.end() )
             return it->second;
@@ -68,10 +68,10 @@ namespace mongo {
     }
 
     Database* DatabaseHolder::getOrCreate(OperationContext* txn,
-                                          const string& ns,
+                                          const StringData& ns,
                                           bool& justCreated) {
 
-        const string dbname = _todb( ns );
+        const StringData dbname = _todb( ns );
         invariant(txn->lockState()->isAtLeastReadLocked(dbname));
 
         if (txn->lockState()->isWriteLocked() && FileAllocator::get()->hasFailed()) {
@@ -81,7 +81,7 @@ namespace mongo {
         {
             SimpleMutex::scoped_lock lk(_m);
             {
-                DBs::iterator i = _dbs.find(dbname);
+                DBs::const_iterator i = _dbs.find(dbname);
                 if( i != _dbs.end() ) {
                     justCreated = false;
                     return i->second;
@@ -97,6 +97,17 @@ namespace mongo {
                 log() << "opening db: " << dbname;
             }
             massert(15927, "can't open database in a read lock. if db was just closed, consider retrying the query. might otherwise indicate an internal error", !cant);
+        }
+
+        // we know we have a db exclusive lock here
+        { // check casing
+            string duplicate = Database::duplicateUncasedName(dbname.toString());
+            if ( !duplicate.empty() ) {
+                stringstream ss;
+                ss << "db already exists with different case already have: [" << duplicate
+                   << "] trying to create [" << dbname.toString() << "]";
+                uasserted( DatabaseDifferCaseCode , ss.str() );
+            }
         }
 
         // we mark our thread as having done writes now as we do not want any exceptions
@@ -121,12 +132,22 @@ namespace mongo {
         return db;
     }
 
-    void DatabaseHolder::erase(OperationContext* txn,
-                               const std::string& ns) {
+    void DatabaseHolder::close(OperationContext* txn,
+                               const StringData& ns) {
         invariant(txn->lockState()->isW());
 
+        StringData db = _todb(ns);
+
         SimpleMutex::scoped_lock lk(_m);
-        _dbs.erase(_todb(ns));
+        DBs::const_iterator it = _dbs.find(db);
+        if ( it == _dbs.end() )
+            return;
+
+        it->second->close( txn );
+        delete it->second;
+        _dbs.erase( db );
+
+        getGlobalEnvironment()->getGlobalStorageEngine()->closeDatabase( txn, db.toString() );
     }
 
     bool DatabaseHolder::closeAll(OperationContext* txn,
@@ -136,32 +157,40 @@ namespace mongo {
 
         getDur().commitNow(txn); // bad things happen if we close a DB with outstanding writes
 
+        SimpleMutex::scoped_lock lk(_m);
+
         set< string > dbs;
-        for ( map<string,Database*>::iterator i = _dbs.begin(); i != _dbs.end(); i++ ) {
+        for ( DBs::const_iterator i = _dbs.begin(); i != _dbs.end(); ++i ) {
             dbs.insert( i->first );
         }
 
-        BSONObjBuilder bb( result.subarrayStart( "dbs" ) );
-        int n = 0;
+        BSONArrayBuilder bb( result.subarrayStart( "dbs" ) );
         int nNotClosed = 0;
         for( set< string >::iterator i = dbs.begin(); i != dbs.end(); ++i ) {
             string name = *i;
 
             LOG(2) << "DatabaseHolder::closeAll name:" << name;
-            Client::Context ctx(txn, name);
 
             if( !force && BackgroundOperation::inProgForDb(name) ) {
                 log() << "WARNING: can't close database "
                       << name
-                      << " because a bg job is in progress - try killOp command" 
+                      << " because a bg job is in progress - try killOp command"
                       << endl;
                 nNotClosed++;
+                continue;
             }
-            else {
-                Database::closeDatabase(txn, name.c_str());
-                bb.append( bb.numStr( n++ ) , name );
-            }
+
+            Database* db = _dbs[name];
+            db->close( txn );
+            delete db;
+
+            _dbs.erase( name );
+
+            getGlobalEnvironment()->getGlobalStorageEngine()->closeDatabase( txn, name );
+
+            bb.append( name );
         }
+
         bb.done();
         if( nNotClosed ) {
             result.append("nNotClosed", nNotClosed);

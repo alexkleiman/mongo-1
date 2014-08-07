@@ -438,6 +438,11 @@ namespace mongo {
         return Status::OK();
     }
 
+    long long RocksSortedDataImpl::getSpaceUsedBytes( OperationContext* txn ) const {
+        // TODO implement
+        return 0;
+    }
+
     // ownership passes to caller
     rocksdb::Comparator* RocksSortedDataImpl::newRocksComparator( const Ordering& order ) {
         return new RocksIndexEntryComparator( order );

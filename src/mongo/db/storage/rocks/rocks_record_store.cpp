@@ -582,11 +582,11 @@ namespace mongo {
         _iterator.reset( NULL );
     }
 
-    void RocksRecordStore::Iterator::prepareToYield() {
+    void RocksRecordStore::Iterator::saveState() {
         // TODO delete iterator, store information
     }
 
-    bool RocksRecordStore::Iterator::recoverFromYield() {
+    bool RocksRecordStore::Iterator::restoreState() {
         // TODO set iterator to same place as before, but with new snapshot
         return true;
     }

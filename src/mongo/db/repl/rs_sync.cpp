@@ -46,6 +46,7 @@
 #include "mongo/db/repl/bgsync.h"
 #include "mongo/db/repl/member.h"
 #include "mongo/db/repl/oplog.h"
+#include "mongo/db/repl/repl_settings.h"
 #include "mongo/db/repl/rs.h"
 #include "mongo/db/repl/rs_sync.h"
 #include "mongo/db/repl/sync_tail.h"
@@ -57,14 +58,6 @@
 
 namespace mongo {
 namespace repl {
-
-    MONGO_EXPORT_STARTUP_SERVER_PARAMETER(maxSyncSourceLagSecs, int, 30);
-    MONGO_INITIALIZER(maxSyncSourceLagSecsCheck) (InitializerContext*) {
-        if (maxSyncSourceLagSecs < 1) {
-            return Status(ErrorCodes::BadValue, "maxSyncSourceLagSecs must be > 0");
-        }
-        return Status::OK();
-    }
 
     /* should be in RECOVERING state on arrival here.
        readlocks

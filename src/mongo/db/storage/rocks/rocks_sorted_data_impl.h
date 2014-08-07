@@ -85,6 +85,8 @@ namespace mongo {
 
         virtual Status initAsEmpty(OperationContext* txn);
 
+        virtual long long getSpaceUsedBytes( OperationContext* txn ) const;
+
         //rocks specific
 
         // ownership passes to caller. Bare because we need to pass the bare pointer to the

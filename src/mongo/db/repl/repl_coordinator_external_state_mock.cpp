@@ -26,7 +26,15 @@
  *    it in the license file.
  */
 
+#include "mongo/platform/basic.h"
+
 #include "mongo/db/repl/repl_coordinator_external_state_mock.h"
+
+#include "mongo/bson/oid.h"
+#include "mongo/db/client.h"
+#include "mongo/db/operation_context_impl.h"
+#include "mongo/util/net/hostandport.h"
+#include "mongo/util/sequence_util.h"
 
 namespace mongo {
 namespace repl {
@@ -34,8 +42,26 @@ namespace repl {
     ReplicationCoordinatorExternalStateMock::ReplicationCoordinatorExternalStateMock() {}
     ReplicationCoordinatorExternalStateMock::~ReplicationCoordinatorExternalStateMock() {}
 
+    void ReplicationCoordinatorExternalStateMock::runSyncSourceFeedback() {}
+    void ReplicationCoordinatorExternalStateMock::shutdown() {}
+    void ReplicationCoordinatorExternalStateMock::forwardSlaveHandshake() {}
+    void ReplicationCoordinatorExternalStateMock::forwardSlaveProgress() {}
+
     OID ReplicationCoordinatorExternalStateMock::ensureMe() {
         return OID::gen();
+    }
+
+    bool ReplicationCoordinatorExternalStateMock::isSelf(const HostAndPort& host) {
+        return sequenceContains(_selfHosts, host);
+    }
+
+    void ReplicationCoordinatorExternalStateMock::addSelf(const HostAndPort& host) {
+        _selfHosts.push_back(host);
+    }
+
+    HostAndPort ReplicationCoordinatorExternalStateMock::getClientHostAndPort(
+            const OperationContext* txn) {
+        return HostAndPort();
     }
 
 } // namespace repl
