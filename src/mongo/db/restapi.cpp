@@ -288,6 +288,7 @@ namespace mongo {
                 ss << a("", "see replSetGetStatus link top of page") << "--replSet </a>"
                    << replSettings.replSet;
             }
+            // TODO(dannenberg) replAllDead is bad and should be removed when masterslave is removed
             if (repl::replAllDead)
                 ss << "\n<b>replication replAllDead=" << repl::replAllDead << "</b>\n";
             else {
@@ -302,8 +303,7 @@ namespace mongo {
 
         virtual void run(OperationContext* txn, stringstream& ss ) {
             Timer t;
-            LockState lockState;
-            readlocktry lk(&lockState, 300);
+            readlocktry lk(txn->lockState(), 300);
             if ( lk.got() ) {
                 _gotLock( t.millis() , ss );
             }

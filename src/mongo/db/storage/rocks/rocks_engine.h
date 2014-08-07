@@ -97,6 +97,10 @@ namespace mongo {
          */
         virtual void cleanShutdown(OperationContext* txn);
 
+        virtual Status closeDatabase( OperationContext* txn, const StringData& db );
+
+        virtual Status dropDatabase( OperationContext* txn, const StringData& db );
+
         // rocks specific api
 
         rocksdb::DB* getDB() { return _db.get(); }

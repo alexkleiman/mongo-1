@@ -161,6 +161,7 @@ namespace mongo {
                    const std::string& crlfile = "",
                    bool weakCertificateValidation = false,
                    bool allowInvalidCertificates = false,
+                   bool allowInvalidHostnames = false,
                    bool fipsMode = false) :
                 pemfile(pemfile),
                 pempwd(pempwd),
@@ -170,6 +171,7 @@ namespace mongo {
                 crlfile(crlfile),
                 weakCertificateValidation(weakCertificateValidation),
                 allowInvalidCertificates(allowInvalidCertificates),
+                allowInvalidHostnames(allowInvalidHostnames),
                 fipsMode(fipsMode) {};
 
             std::string pemfile;
@@ -180,6 +182,7 @@ namespace mongo {
             std::string crlfile;
             bool weakCertificateValidation;
             bool allowInvalidCertificates;
+            bool allowInvalidHostnames;
             bool fipsMode;
         };
 
@@ -229,6 +232,7 @@ namespace mongo {
             bool _validateCertificates;
             bool _weakValidation;
             bool _allowInvalidCertificates;
+            bool _allowInvalidHostnames;
             std::string _serverSubjectName;
             std::string _clientSubjectName;
 
@@ -326,6 +330,7 @@ namespace mongo {
                 sslGlobalParams.sslCRLFile,
                 sslGlobalParams.sslWeakCertificateValidation,
                 sslGlobalParams.sslAllowInvalidCertificates,
+                sslGlobalParams.sslAllowInvalidHostnames,
                 sslGlobalParams.sslFIPSMode);
             theSSLManager = new SSLManager(params, isSSLServer);
         }
@@ -402,7 +407,8 @@ namespace mongo {
     SSLManager::SSLManager(const Params& params, bool isServer) :
         _validateCertificates(false),
         _weakValidation(params.weakCertificateValidation),
-        _allowInvalidCertificates(params.allowInvalidCertificates) {
+        _allowInvalidCertificates(params.allowInvalidCertificates),
+        _allowInvalidHostnames(params.allowInvalidHostnames) {
 
         SSL_library_init();
         SSL_load_error_strings();
@@ -540,17 +546,19 @@ namespace mongo {
 
     void SSLManager::_setupFIPS() {
         // Turn on FIPS mode if requested.
-#ifdef OPENSSL_FIPS
+        // OPENSSL_FIPS must be defined by the OpenSSL headers, plus MONGO_SSL_FIPS
+        // must be defined via a MongoDB build flag.
+#if defined(OPENSSL_FIPS) && defined(MONGO_SSL_FIPS)
         int status = FIPS_mode_set(1);
         if (!status) {
-            error() << "can't activate FIPS mode: " << 
+            severe() << "can't activate FIPS mode: " << 
                 getSSLErrorMessage(ERR_get_error()) << endl;
-            fassertFailed(16703);
+            fassertFailedNoTrace(16703);
         }
         log() << "FIPS 140-2 mode activated" << endl;
 #else
-        error() << "this version of mongodb was not compiled with FIPS support";
-        fassertFailed(17089);
+        severe() << "this version of mongodb was not compiled with FIPS support";
+        fassertFailedNoTrace(17089);
 #endif
     }
 
@@ -967,7 +975,7 @@ namespace mongo {
         sk_GENERAL_NAME_pop_free(sanNames, GENERAL_NAME_free);
 
         if (!sanMatch) {
-            if (_allowInvalidCertificates) {
+            if (_allowInvalidCertificates || _allowInvalidHostnames) {
                 warning() << "The server certificate does not match the host name " << 
                     remoteHost;
             }

@@ -46,6 +46,7 @@
 #include "mongo/db/catalog/database_holder.h"
 #include "mongo/db/dbhelpers.h"
 #include "mongo/db/global_environment_experiment.h"
+#include "mongo/db/index/index_access_method.h"
 #include "mongo/db/instance.h"
 #include "mongo/db/introspect.h"
 #include "mongo/db/repair_database.h"
@@ -53,7 +54,7 @@
 #include "mongo/db/server_parameters.h"
 #include "mongo/db/storage_options.h"
 #include "mongo/db/storage/storage_engine.h"
-#include "mongo/db/catalog/collection.h"
+#include "mongo/db/storage/recovery_unit.h"
 #include "mongo/util/log.h"
 
 namespace mongo {
@@ -67,9 +68,37 @@ namespace mongo {
                  NamespaceString::normal( ns ) );
     }
 
+    class Database::CollectionCacheChange : public RecoveryUnit::Change {
+    public:
+        CollectionCacheChange(Database* db, const StringData& ns)
+        : _db(db), _ns(ns.toString()) { }
+
+        void rollback() { _db->_clearCollectionCache(_ns); }
+        void commit() { }
+    private:
+        Database* const _db;
+        std::string _ns;
+    };
+
     Database::~Database() {
         for (CollectionMap::const_iterator i = _collections.begin(); i != _collections.end(); ++i)
             delete i->second;
+    }
+
+    void Database::close(OperationContext* txn ) {
+        // XXX? - Do we need to close database under global lock or just DB-lock is sufficient ?
+        invariant(txn->lockState()->isW());
+
+        repl::oplogCheckCloseDatabase(txn, this); // oplog caches some things, dirty its caches
+
+        if ( BackgroundOperation::inProgForDb( _name ) ) {
+            log() << "warning: bg op in prog during close db? " << _name << endl;
+        }
+
+        // Before the files are closed, flush any potentially outstanding changes, which might
+        // reference this database. Otherwise we will assert when subsequent commit if needed
+        // is called and it happens to have write intents for the removed files.
+        txn->recoveryUnit()->commitIfNeeded(true);
     }
 
     Status Database::validateDBName( const StringData& dbname ) {
@@ -108,9 +137,9 @@ namespace mongo {
     }
 
     Database::Database(OperationContext* txn,
-                       const std::string& name,
+                       const StringData& name,
                        DatabaseCatalogEntry* dbEntry )
-        : _name(name),
+        : _name(name.toString()),
           _dbEntry( dbEntry ),
           _profileName(_name + ".system.profile"),
           _indexesName(_name + ".system.indexes"),
@@ -220,28 +249,24 @@ namespace mongo {
         if ( !coll )
             return 0;
 
-        IndexCatalog::IndexIterator ii =
-            coll->getIndexCatalog()->getIndexIterator( true /*includeUnfinishedIndexes*/ );
+        IndexCatalog* idxCatalog = coll->getIndexCatalog();
+
+        IndexCatalog::IndexIterator ii = idxCatalog->getIndexIterator( true );
 
         long long totalSize = 0;
 
         while ( ii.more() ) {
             IndexDescriptor* d = ii.next();
-            string indNS = d->indexNamespace();
+            IndexAccessMethod* iam = idxCatalog->getIndex( d );
 
-            // XXX creating a Collection for an index which isn't a Collection
-            Collection* indColl = getCollection( opCtx, indNS );
-            if ( ! indColl ) {
-                log() << "error: have index descriptor ["  << indNS
-                      << "] but no entry in the index collection." << endl;
-                continue;
-            }
-            totalSize += indColl->dataSize();
+            long long ds = iam->getSpaceUsedBytes( opCtx );
+
+            totalSize += ds;
             if ( details ) {
-                long long const indexSize = indColl->dataSize() / scale;
-                details->appendNumber( d->indexName() , indexSize );
+                details->appendNumber( d->indexName(), ds / scale );
             }
         }
+
         return totalSize;
     }
 
@@ -298,6 +323,8 @@ namespace mongo {
             // collection doesn't exist
             return Status::OK();
         }
+
+        txn->recoveryUnit()->registerChange( new CollectionCacheChange(this, fullns) );
 
         {
             NamespaceString s( fullns );
@@ -470,13 +497,14 @@ namespace mongo {
 
         audit::logCreateCollection( currentClient.get(), ns );
 
-        Status status = _dbEntry->createCollection( txn, ns,
-                                                    options, allocateDefaultSpace );
-        massertStatusOK( status );
+        txn->recoveryUnit()->registerChange( new CollectionCacheChange(this, ns) );
 
+        Status status = _dbEntry->createCollection(txn, ns,
+                                                options, allocateDefaultSpace);
+        massertStatusOK(status);
 
-        Collection* collection = getCollection( txn, ns );
-        invariant( collection );
+        Collection* collection = getCollection(txn, ns);
+        invariant(collection);
 
         if ( createIdIndex ) {
             if ( collection->requiresIdIndex() ) {
@@ -496,7 +524,7 @@ namespace mongo {
     }
 
     const DatabaseCatalogEntry* Database::getDatabaseCatalogEntry() const {
-        return _dbEntry.get();
+        return _dbEntry;
     }
 
     void dropAllDatabasesExceptLocal(OperationContext* txn) {
@@ -540,10 +568,10 @@ namespace mongo {
 
         txn->recoveryUnit()->syncDataAndTruncateJournal();
 
-        Database::closeDatabase(txn, name );
+        dbHolder().close( txn, name );
         db = 0; // d is now deleted
 
-        _deleteDataFiles( name );
+        getGlobalEnvironment()->getGlobalStorageEngine()->dropDatabase( txn, name );
     }
 
     /** { ..., capped: true, size: ..., max: ... }

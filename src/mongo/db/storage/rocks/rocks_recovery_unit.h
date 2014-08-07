@@ -67,6 +67,8 @@ namespace mongo {
 
         virtual void syncDataAndTruncateJournal();
 
+        virtual void registerChange(Change* change);
+
         // local api
 
         rocksdb::WriteBatch* writeBatch();

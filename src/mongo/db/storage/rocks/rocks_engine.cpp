@@ -148,6 +148,16 @@ namespace mongo {
         _db.reset();
     }
 
+    Status RocksEngine::closeDatabase( OperationContext* txn, const StringData& db ) {
+        // TODO implement
+        return Status::OK();
+    }
+
+    Status RocksEngine::dropDatabase( OperationContext* txn, const StringData& db ) {
+        // TODO implement
+        return Status::OK();
+    }
+
     // non public api
 
     rocksdb::ReadOptions RocksEngine::readOptionsWithSnapshot( OperationContext* opCtx ) {

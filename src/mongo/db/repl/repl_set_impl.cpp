@@ -32,7 +32,6 @@
 
 #include "mongo/db/client.h"
 #include "mongo/db/catalog/database.h"
-#include "mongo/db/commands/get_last_error.h"
 #include "mongo/db/dbhelpers.h"
 #include "mongo/db/global_environment_experiment.h"
 #include "mongo/db/index_rebuilder.h"
@@ -41,6 +40,7 @@
 #include "mongo/db/repl/connections.h"
 #include "mongo/db/repl/isself.h"
 #include "mongo/db/repl/oplog.h"
+#include "mongo/db/repl/oplogreader.h"
 #include "mongo/db/repl/repl_set_seed_list.h"
 #include "mongo/db/repl/repl_coordinator_global.h"
 #include "mongo/db/storage/storage_engine.h"
@@ -148,12 +148,11 @@ namespace {
 
     void ReplSetImpl::changeState(MemberState s) { box.change(s, _self); }
 
-    bool ReplSetImpl::setMaintenanceMode(const bool inc) {
+    bool ReplSetImpl::setMaintenanceMode(OperationContext* txn, const bool inc) {
         lock replLock(this);
 
         // Lock here to prevent state from changing between checking the state and changing it
-        LockState lockState;
-        Lock::GlobalWrite writeLock(&lockState);
+        Lock::GlobalWrite writeLock(txn->lockState());
 
         if (box.getState().primary()) {
             return false;
@@ -203,10 +202,9 @@ namespace {
         return max;
     }
 
-    void ReplSetImpl::relinquish() {
+    void ReplSetImpl::relinquish(OperationContext* txn) {
         {
-            LockState lockState;
-            Lock::GlobalWrite writeLock(&lockState);    // so we are synchronized with _logOp()
+            Lock::GlobalWrite writeLock(txn->lockState());  // so we are synchronized with _logOp()
 
             LOG(2) << "replSet attempting to relinquish" << endl;
             if (box.getState().primary()) {
@@ -234,21 +232,21 @@ namespace {
     }
 
     // look freshly for who is primary - includes relinquishing ourself.
-    void ReplSetImpl::forgetPrimary() {
+    void ReplSetImpl::forgetPrimary(OperationContext* txn) {
         if (box.getState().primary())
-            relinquish();
+            relinquish(txn);
         else {
             box.setOtherPrimary(0);
         }
     }
 
     // for the replSetStepDown command
-    bool ReplSetImpl::_stepDown(int secs) {
+    bool ReplSetImpl::_stepDown(OperationContext* txn, int secs) {
         lock lk(this);
         if (box.getState().primary()) {
             elect.steppedDown = time(0) + secs;
             log() << "replSet info stepping down as primary secs=" << secs << rsLog;
-            relinquish();
+            relinquish(txn);
             return true;
         }
         return false;
@@ -520,9 +518,8 @@ namespace {
         //       we cannot error out at this point, except fatally.  Check errors earlier.
         lock lk(this);
 
-        if (getLastErrorDefault || !c.getLastErrorDefaults.isEmpty()) {
-            // see comment in dbcommands.cpp for getlasterrordefault
-            getLastErrorDefault = new BSONObj(c.getLastErrorDefaults);
+        if (!getLastErrorDefault.isEmpty() || !c.getLastErrorDefaults.isEmpty()) {
+            getLastErrorDefault = c.getLastErrorDefaults;
         }
 
         list<ReplSetConfig::MemberCfg*> newOnes;
@@ -672,7 +669,7 @@ namespace {
             if (p)
                 oldPrimaryId = p->id();
         }
-        forgetPrimary();
+        forgetPrimary(txn);
 
         // not setting _self to 0 as other threads use _self w/o locking
         int me = 0;
@@ -916,22 +913,6 @@ namespace {
             return mv["ts"]._opTime();
         }
         return OpTime();
-    }
-
-    bool ReplSetImpl::registerSlave(const OID& rid, const int memberId) {
-        Member* member = NULL;
-        {
-            lock lk(this);
-            member = getMutableMember(memberId);
-        }
-
-        // it is possible that a node that was removed in a reconfig tried to handshake this node
-        // in that case, the Member will no longer be in the _members List and member will be NULL
-        if (!member) {
-            return false;
-        }
-        syncSourceFeedback.associateMember(rid, member);
-        return true;
     }
 
 } // namespace repl

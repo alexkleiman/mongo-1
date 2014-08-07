@@ -395,10 +395,19 @@ namespace mongo {
         if (isEOF()) { return PlanStage::IS_EOF; }
 
         invariant(_child.get());
-        return _child->work(out);
+        StageState state = _child->work(out);
+
+        if (PlanStage::NEED_TIME == state) {
+            ++_commonStats.needTime;
+        }
+        else if (PlanStage::ADVANCED == state) {
+            ++_commonStats.advanced;
+        }
+
+        return state;
     }
 
-    void SubplanStage::prepareToYield() {
+    void SubplanStage::saveState() {
         ++_commonStats.yields;
         if (_killed) {
             return;
@@ -407,11 +416,11 @@ namespace mongo {
         // We're ranking a sub-plan via an MPR or we're streaming results from this stage.  Either
         // way, pass on the request.
         if (NULL != _child.get()) {
-            _child->prepareToYield();
+            _child->saveState();
         }
     }
 
-    void SubplanStage::recoverFromYield() {
+    void SubplanStage::restoreState(OperationContext* opCtx) {
         ++_commonStats.unyields;
         if (_killed) {
             return;
@@ -420,7 +429,7 @@ namespace mongo {
         // We're ranking a sub-plan via an MPR or we're streaming results from this stage.  Either
         // way, pass on the request.
         if (NULL != _child.get()) {
-            _child->recoverFromYield();
+            _child->restoreState(opCtx);
         }
     }
 

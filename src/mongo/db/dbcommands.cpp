@@ -62,7 +62,7 @@
 #include "mongo/db/lasterror.h"
 #include "mongo/db/namespace_string.h"
 #include "mongo/db/ops/insert.h"
-#include "mongo/db/query/get_runner.h"
+#include "mongo/db/query/get_executor.h"
 #include "mongo/db/query/internal_plans.h"
 #include "mongo/db/query/query_planner.h"
 #include "mongo/db/repair_database.h"
@@ -109,6 +109,7 @@ namespace mongo {
             }
 
             Status status = repl::getGlobalReplicationCoordinator()->stepDownAndWaitForSecondary(
+                    txn,
                     repl::ReplicationCoordinator::Milliseconds(timeoutSecs * 1000),
                     repl::ReplicationCoordinator::Milliseconds(120 * 1000),
                     repl::ReplicationCoordinator::Milliseconds(60 * 1000));
@@ -673,23 +674,23 @@ namespace mongo {
                 return 0;
             }
 
-            Runner* rawRunner;
-            if (!getRunner(txn, coll, cq, &rawRunner, QueryPlannerParams::NO_TABLE_SCAN).isOK()) {
-                uasserted(17241, "Can't get runner for query " + query.toString());
+            PlanExecutor* rawExec;
+            if (!getExecutor(txn, coll, cq, &rawExec, QueryPlannerParams::NO_TABLE_SCAN).isOK()) {
+                uasserted(17241, "Can't get executor for query " + query.toString());
                 return 0;
             }
 
-            auto_ptr<Runner> runner(rawRunner);
+            auto_ptr<PlanExecutor> exec(rawExec);
 
-            // The runner must be registered to be informed of DiskLoc deletions and NS dropping
+            // The executor must be registered to be informed of DiskLoc deletions and NS dropping
             // when we yield the lock below.
-            const ScopedRunnerRegistration safety(runner.get());
+            const ScopedExecutorRegistration safety(exec.get());
 
             const ChunkVersion shardVersionAtStart = shardingState.getVersion(ns);
 
             BSONObj obj;
-            Runner::RunnerState state;
-            while (Runner::RUNNER_ADVANCED == (state = runner->getNext(&obj, NULL))) {
+            PlanExecutor::ExecState state;
+            while (PlanExecutor::ADVANCED == (state = exec->getNext(&obj, NULL))) {
                 BSONElement ne = obj["n"];
                 verify(ne.isNumber());
                 int myn = ne.numberInt();
@@ -788,7 +789,7 @@ namespace mongo {
 
             result.appendBool( "estimate" , estimate );
 
-            auto_ptr<Runner> runner;
+            auto_ptr<PlanExecutor> exec;
             if ( min.isEmpty() && max.isEmpty() ) {
                 if ( estimate ) {
                     result.appendNumber( "size" , static_cast<long long>(collection->dataSize()) );
@@ -797,7 +798,7 @@ namespace mongo {
                     result.append( "millis" , timer.millis() );
                     return 1;
                 }
-                runner.reset(InternalPlanner::collectionScan(txn, ns,collection));
+                exec.reset(InternalPlanner::collectionScan(txn, ns,collection));
             }
             else if ( min.isEmpty() || max.isEmpty() ) {
                 errmsg = "only one of min or max specified";
@@ -822,7 +823,7 @@ namespace mongo {
                 min = Helpers::toKeyFormat( kp.extendRangeBound( min, false ) );
                 max = Helpers::toKeyFormat( kp.extendRangeBound( max, false ) );
 
-                runner.reset(InternalPlanner::indexScan(txn, collection, idx, min, max, false));
+                exec.reset(InternalPlanner::indexScan(txn, collection, idx, min, max, false));
             }
 
             long long avgObjSize = collection->dataSize() / collection->numRecords();
@@ -834,8 +835,8 @@ namespace mongo {
             long long numObjects = 0;
 
             DiskLoc loc;
-            Runner::RunnerState state;
-            while (Runner::RUNNER_ADVANCED == (state = runner->getNext(NULL, &loc))) {
+            PlanExecutor::ExecState state;
+            while (PlanExecutor::ADVANCED == (state = exec->getNext(NULL, &loc))) {
                 if ( estimate )
                     size += avgObjSize;
                 else
@@ -850,7 +851,7 @@ namespace mongo {
                 }
             }
 
-            if (Runner::RUNNER_EOF != state) {
+            if (PlanExecutor::IS_EOF != state) {
                 warning() << "Internal error while reading " << ns << endl;
             }
 
@@ -1172,14 +1173,18 @@ namespace mongo {
        assumption needs to be audited and documented. */
     class MaintenanceModeSetter {
     public:
-        MaintenanceModeSetter() :
-            maintenanceModeSet(repl::getGlobalReplicationCoordinator()->setMaintenanceMode(true))
+        MaintenanceModeSetter(OperationContext* txn) :
+            _txn(txn),
+            maintenanceModeSet(
+                    repl::getGlobalReplicationCoordinator()->setMaintenanceMode(txn, true))
             {}
         ~MaintenanceModeSetter() {
             if (maintenanceModeSet)
-                repl::getGlobalReplicationCoordinator()->setMaintenanceMode(false);
+                repl::getGlobalReplicationCoordinator()->setMaintenanceMode(_txn, false);
         } 
     private:
+        // Not owned.
+        OperationContext* _txn;
         bool maintenanceModeSet;
     };
 
@@ -1319,7 +1324,7 @@ namespace mongo {
         if (c->maintenanceMode() &&
                 repl::getGlobalReplicationCoordinator()->getReplicationMode() ==
                         repl::ReplicationCoordinator::modeReplSet) {
-            mmSetter.reset(new MaintenanceModeSetter());
+            mmSetter.reset(new MaintenanceModeSetter(txn));
         }
 
         if (c->shouldAffectCommandCounter()) {
