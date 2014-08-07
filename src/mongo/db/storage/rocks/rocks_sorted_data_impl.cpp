@@ -439,8 +439,21 @@ namespace mongo {
     }
 
     long long RocksSortedDataImpl::getSpaceUsedBytes( OperationContext* txn ) const {
-        // TODO implement
-        return 0;
+        boost::scoped_ptr<rocksdb::Iterator> iter( _db->NewIterator( rocksdb::ReadOptions(),
+                                                                     _columnFamily ) );
+        iter->SeekToFirst();
+        const rocksdb::Slice rangeStart = iter->key();
+        iter->SeekToLast();
+        const rocksdb::Slice rangeEnd = iter->key();
+
+        rocksdb::Range fullIndexRange( rangeStart, rangeEnd );
+        uint64_t spacedUsedBytes = 0;
+
+        // TODO Rocks specifies that this may not include recently written data. Figure out if
+        // that's okay
+        _db->GetApproximateSizes( _columnFamily, &fullIndexRange, 0, &spacedUsedBytes );
+
+        return spacedUsedBytes;
     }
 
     // ownership passes to caller
