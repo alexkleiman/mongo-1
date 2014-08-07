@@ -40,7 +40,7 @@ namespace mongo {
 namespace {
 
     const int TempKeyMaxSize = 1024; // this goes away with SERVER-3372
-    
+
     bool hasFieldNames(const BSONObj& obj) {
         BSONForEach(e, obj) {
             if (e.fieldName()[0])
