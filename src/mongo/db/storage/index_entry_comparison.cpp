@@ -63,7 +63,10 @@ namespace mongo {
             const BSONElement r = rhsIt.next();
 
             if (int cmp = l.woCompare(r, /*compareFieldNames=*/false)) {
-                invariant(cmp != std::numeric_limits<int>::min()); // can't be negated
+                if(cmp == std::numeric_limits<int>::min()) {
+                    return -1; // can't be negated
+                }
+
                 return _order.descending(mask) ? -cmp : cmp;
             }
 
