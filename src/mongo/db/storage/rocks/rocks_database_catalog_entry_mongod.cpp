@@ -34,7 +34,14 @@
 #include <boost/optional.hpp>
 #include <rocksdb/db.h>
 
+#include "mongo/db/index/2d_access_method.h"
 #include "mongo/db/index/btree_access_method.h"
+#include "mongo/db/index/fts_access_method.h"
+#include "mongo/db/index/hash_access_method.h"
+#include "mongo/db/index/haystack_access_method.h"
+#include "mongo/db/index/index_access_method.h"
+#include "mongo/db/index/index_descriptor.h"
+#include "mongo/db/index/s2_access_method.h"
 #include "mongo/db/storage/rocks/rocks_sorted_data_impl.h"
 #include "mongo/db/storage/rocks/rocks_collection_catalog_entry.h"
 #include "mongo/db/storage/rocks/rocks_engine.h"
@@ -51,7 +58,32 @@ namespace mongo {
         rocksdb::ColumnFamilyHandle* cf = _engine->getIndexColumnFamily( collection->ns().ns(),
                                                                          desc->indexName(),
                                                                          order );
+
+        index->headManager()->setHead(txn, DiskLoc(0xDEAD, 0xBEAF));
         std::auto_ptr<RocksSortedDataImpl> raw( new RocksSortedDataImpl( _engine->getDB(), cf ) );
-        return new BtreeAccessMethod( index, raw.release() );
+
+        const string& type = index->descriptor()->getAccessMethodName();
+
+        if ("" == type)
+            return new BtreeAccessMethod( index, raw.release() );
+
+        if (IndexNames::HASHED == type)
+            return new HashAccessMethod( index, raw.release() );
+
+        if (IndexNames::GEO_2DSPHERE == type)
+            return new S2AccessMethod( index, raw.release() );
+
+        if (IndexNames::TEXT == type)
+            return new FTSAccessMethod( index, raw.release() );
+
+        if (IndexNames::GEO_HAYSTACK == type)
+            return new HaystackAccessMethod( index, raw.release() );
+
+        if (IndexNames::GEO_2D == type)
+            return new TwoDAccessMethod( index, raw.release() );
+
+        log() << "Can't find index for keyPattern " << index->descriptor()->keyPattern();
+        // TODO make this fassert
+        return NULL;
     }
 }
