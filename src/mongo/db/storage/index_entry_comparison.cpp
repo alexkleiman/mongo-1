@@ -63,11 +63,7 @@ namespace mongo {
             const BSONElement r = rhsIt.next();
 
             if (int cmp = l.woCompare(r, /*compareFieldNames=*/false)) {
-                if (cmp == std::numeric_limits<int>::min()) {
-                  // can't be negated, so return -1
-                  return -1;
-                }
-
+                invariant(cmp != std::numeric_limits<int>::min()); // can't be negated
                 return _order.descending(mask) ? -cmp : cmp;
             }
 
@@ -108,6 +104,7 @@ namespace mongo {
                                                         const vector<bool>& suffixInclusive,
                                                         const int cursorDirection) {
 
+        // Please read the comments in the header file to see why this is done.
         // The basic idea is that we use the field name to store a byte which indicates whether
         // each field in the query object is inclusive and exclusive, and if it is exclusive, in
         // which direction.
@@ -133,14 +130,25 @@ namespace mongo {
             }
         }
 
+        // If the prefix is exclusive then the suffix does not matter as it will never be used
+        if (prefixExclusive) {
+            return bb.obj();
+        }
+
         // Handle the suffix. Note that the useful parts of the suffix start at index prefixLen
         // rather than at 0.
         invariant(keySuffix.size() == suffixInclusive.size());
         for (size_t i = prefixLen; i < keySuffix.size(); i++) {
+            invariant(keySuffix[i]);
             if (suffixInclusive[i]) {
                 bb.appendAs(*keySuffix[i], StringData());
-            } else {
+            }
+            else {
                 bb.appendAs(*keySuffix[i], exclusiveFieldName);
+
+                // If an exclusive field exists then no fields after this will matter, since an
+                // exclusive field never evaluates as equal
+                return bb.obj();
             }
         }
 
