@@ -690,7 +690,7 @@ namespace mongo {
 
         // verify state is sane post cleaning
 
-        long long numIndexesInCollectionCatalogEntry = 
+        long long numIndexesInCollectionCatalogEntry =
             _collection->getCatalogEntry()->getTotalIndexCount();
 
         if ( haveIdIndex ) {
