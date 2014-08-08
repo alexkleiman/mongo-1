@@ -32,6 +32,7 @@
 #include "mongo/db/storage/rocks/rocks_engine.h"
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/make_shared.hpp>
 
 #include <rocksdb/comparator.h>
 #include <rocksdb/db.h>
@@ -49,9 +50,14 @@
 
 #define ROCKS_TRACE if(0) log()
 
+#define ROCKS_STATUS_OK( s ) if ( !( s ).ok() ) { error() << "rocks error: " << ( s ).ToString(); \
+    invariant( false ); }
+
 namespace mongo {
 
     RocksEngine::RocksEngine( const std::string& path ): _path( path ), _db( NULL ) {
+        // TODO make this more fine-grained?
+        boost::mutex::scoped_lock lk( _entryMapMutex );
         std::vector<rocksdb::ColumnFamilyDescriptor> families;
 
         vector<string> familyNames = _listFamilyNames( path );
@@ -61,7 +67,7 @@ namespace mongo {
 
         if ( !familyNames.empty() ) {
             // go through and create RocksCollectionCatalogEntries for all non-indexes
-            EntryVector nonIndexEntries = _createNonIndexCatalogEntries( familyNames );
+            _createNonIndexCatalogEntries( familyNames );
 
             // Create a mapping from index names to the Ordering object for each index.
             // These Ordering objects will be used to create RocksIndexEntryComparators to be used
@@ -77,7 +83,7 @@ namespace mongo {
             rocksdb::DB* dbPtr;
             rocksdb::Status s = rocksdb::DB::Open( dbOptions(), path, &dbPtr );
             _db.reset( dbPtr );
-            _rock_status_ok( s );
+            ROCKS_STATUS_OK( s );
             return;
         }
 
@@ -86,7 +92,7 @@ namespace mongo {
 
         rocksdb::DB* dbPtr;
         rocksdb::Status s = rocksdb::DB::Open( dbOptions(), path, families, &handles, &dbPtr );
-        _rock_status_ok( s );
+        ROCKS_STATUS_OK( s );
 
         _db.reset( dbPtr );
 
@@ -142,7 +148,6 @@ namespace mongo {
         boost::mutex::scoped_lock lk( _entryMapMutex );
         _entryMap = EntryMap();
         _collectionComparator.reset();
-        _entryMap = EntryMap();
         _db.reset();
     }
 
@@ -212,7 +217,7 @@ namespace mongo {
         options.comparator = comparator;
 
         rocksdb::Status status = _db->CreateColumnFamily( options, fullName, &cf );
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
         invariant( cf != NULL);
         entry->indexNameToComparator[indexName].reset( comparator );
         entry->indexNameToCF[indexName].reset( cf );
@@ -266,11 +271,11 @@ namespace mongo {
                                                           ns.toString(),
                                                           &cf );
 
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
         rocksdb::ColumnFamilyHandle* cf_meta;
         const string metadataName = ns.toString() + "&";
         status = _db->CreateColumnFamily( rocksdb::ColumnFamilyOptions(), metadataName, &cf_meta );
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
 
         const BSONObj optionsObj = options.toBSON();
         const rocksdb::Slice key( "options" );
@@ -317,9 +322,9 @@ namespace mongo {
         entry->collectionEntry.reset( NULL );
 
         rocksdb::Status status = _db->DropColumnFamily( entry->cfHandle.get() );
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
         status = _db->DropColumnFamily( entry->metaCfHandle.get() );
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
 
         entry->cfHandle.reset( NULL );
         entry->metaCfHandle.reset( NULL );
@@ -353,13 +358,6 @@ namespace mongo {
         return rocksdb::ColumnFamilyOptions();
     }
 
-    void RocksEngine::_rock_status_ok( rocksdb::Status s ) {
-        if ( !( s ).ok() ) {
-            error() << "rocks error: " << ( s ).ToString();
-            invariant( false );
-        }
-    }
-
     vector<std::string> RocksEngine::_listFamilyNames( string filepath ) {
         std::vector<std::string> familyNames;
         if ( boost::filesystem::exists( filepath ) ) {
@@ -371,7 +369,7 @@ namespace mongo {
                 // DNE, this means the directory exists but is empty, which is fine
                 // because it means no rocks database exists yet
             } else {
-                _rock_status_ok( s );
+                ROCKS_STATUS_OK( s );
             }
         }
 
@@ -390,10 +388,7 @@ namespace mongo {
      * through the RocksCollectionCatalogEntry class for each non-index column family in the
      * database. Hence, this method.
      */
-    RocksEngine::EntryVector RocksEngine::_createNonIndexCatalogEntries(
-                                              const vector<string>& namespaces ) {
-        EntryVector entries;
-
+    void RocksEngine::_createNonIndexCatalogEntries( const vector<string>& namespaces ) {
         for ( unsigned i = 0; i < namespaces.size(); ++i ) {
             const string ns = namespaces[i];
 
@@ -415,11 +410,7 @@ namespace mongo {
             // indexes
             invariant( !entry->collectionEntry );
             entry->collectionEntry.reset( new RocksCollectionCatalogEntry( this, ns ) );
-
-            entries.push_back(entry);
         }
-
-        return entries;
     }
 
     map<string, Ordering> RocksEngine::_createIndexOrderings( const vector<string>& namespaces,
@@ -431,7 +422,7 @@ namespace mongo {
         rocksdb::Status status = rocksdb::DB::OpenForReadOnly( dbOptions(), filepath, &dbPtr );
         _db.reset( dbPtr );
 
-        _rock_status_ok( status );
+        ROCKS_STATUS_OK( status );
 
         map<string, Ordering> indexOrderings;
 
@@ -447,10 +438,10 @@ namespace mongo {
             // statement.
             invariant( !_isDefaultFamily( ns ) );
 
-            StringData collection = ns.substr( 0, sepPos );
+            string collection = ns.substr( 0, sepPos );
 
-            boost::shared_ptr<Entry> entry = _entryMap[collection];
-            if ( !entry ) { entry = boost::make_shared<Entry>(); _entryMap[collection] = entry; }
+            boost::shared_ptr<Entry>& entry = _entryMap[collection];
+            invariant( entry );
 
             // Generate the Ordering object for each index, allowing the column families
             // representing these indexes to eventually be opened
@@ -527,7 +518,7 @@ namespace mongo {
                 continue;
             }
 
-            StringData collection = ns;
+            string collection = ns;
 
             const size_t sepPos = ns.find( '$' );
 
@@ -553,7 +544,7 @@ namespace mongo {
                 rocksdb::Status status = _db->Get(rocksdb::ReadOptions(), handles[metadataMap[ns]],
                                         optionsKey, &value);
 
-                _rock_status_ok( status );
+                ROCKS_STATUS_OK( status );
                 BSONObj optionsObj( value.data() );
                 options.parse( optionsObj );
 
@@ -573,7 +564,7 @@ namespace mongo {
                                                                     handles[metadataMap[ns]] ) );
                 }
                 // entry->collectionEntry is set in _createNonIndexCatalogEntries()
-                invariant( entry->collectionEntry.get() != NULL );
+                invariant( entry->collectionEntry );
             }
         }
     }

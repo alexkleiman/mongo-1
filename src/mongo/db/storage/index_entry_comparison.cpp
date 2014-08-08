@@ -63,7 +63,11 @@ namespace mongo {
             const BSONElement r = rhsIt.next();
 
             if (int cmp = l.woCompare(r, /*compareFieldNames=*/false)) {
-                invariant(cmp != std::numeric_limits<int>::min()); // can't be negated
+                if (cmp == std::numeric_limits<int>::min()) {
+                    // can't be negated, so return -1
+                    return -1;
+                }
+
                 return _order.descending(mask) ? -cmp : cmp;
             }
 
@@ -142,8 +146,7 @@ namespace mongo {
             invariant(keySuffix[i]);
             if (suffixInclusive[i]) {
                 bb.appendAs(*keySuffix[i], StringData());
-            }
-            else {
+            } else {
                 bb.appendAs(*keySuffix[i], exclusiveFieldName);
 
                 // If an exclusive field exists then no fields after this will matter, since an

@@ -44,7 +44,8 @@ namespace mongo {
                                        _defaultCommit( defaultCommit ),
                                        _writeBatch(  ),
                                        _depth( 0 ),
-                                       _snapshot( NULL ) { }
+                                       _snapshot( NULL ),
+                                       _changes() { }
 
 
     RocksRecoveryUnit::~RocksRecoveryUnit() {
@@ -55,11 +56,17 @@ namespace mongo {
         if ( _snapshot ) {
             _db->ReleaseSnapshot( _snapshot );
         }
+
+        while ( !_changes.empty() ) {
+            _changes.top()->rollback();
+            _changes.pop();
+        }
     }
 
     void RocksRecoveryUnit::beginUnitOfWork() {
         _depth++;
     }
+
     void RocksRecoveryUnit::commitUnitOfWork() {
         if ( _snapshot ) {
             _db->ReleaseSnapshot( _snapshot );
@@ -80,6 +87,10 @@ namespace mongo {
         // XXX change to _writeBatch->Clear() (easy!)
         _writeBatch.reset( new rocksdb::WriteBatch() );
 
+        while ( !_changes.empty() ) {
+            _changes.top()->commit();
+            _changes.pop();
+        }
     }
 
     void RocksRecoveryUnit::endUnitOfWork() {
@@ -128,7 +139,7 @@ namespace mongo {
     }
 
     void RocksRecoveryUnit::registerChange(Change* change) {
-        // TODO implement
+        _changes.push( boost::shared_ptr<Change>( change ) );
     }
 
     // XXX lazily initialized for now
