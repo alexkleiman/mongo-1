@@ -81,7 +81,7 @@ namespace mongo {
             if (rEqBehavior) {
                 // rhs is the query, lhs is the stored data, so reverse the returns
                 invariant(lEqBehavior == normal);
-                return lEqBehavior == less ? 1 : -1;
+                return rEqBehavior == less ? 1 : -1;
             }
 
         }
