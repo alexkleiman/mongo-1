@@ -145,7 +145,6 @@ namespace mongo {
         Entry* getEntry( const StringData& ns );
         const Entry* getEntry( const StringData& ns ) const;
 
-        typedef std::vector<boost::shared_ptr<Entry> > EntryVector;
         typedef std::vector<rocksdb::ColumnFamilyDescriptor> CfdVector;
 
         static rocksdb::Options dbOptions();
@@ -153,11 +152,6 @@ namespace mongo {
     private:
         rocksdb::ColumnFamilyOptions _collectionOptions() const;
         rocksdb::ColumnFamilyOptions _indexOptions() const;
-
-        /**
-         * Does nothing if s.ok() is true, and blows up otherwise
-         */
-        void _rock_status_ok( rocksdb::Status s );
 
         std::string _path;
         boost::scoped_ptr<rocksdb::DB> _db;
@@ -174,7 +168,7 @@ namespace mongo {
         bool _isDefaultFamily( const string& name );
 
         // See larger comment in .cpp for why this is necessary
-        EntryVector _createNonIndexCatalogEntries( const std::vector<std::string>& families );
+        void _createNonIndexCatalogEntries( const std::vector<std::string>& families );
 
         /**
          * Return a vector containing the name of every column family in the database
