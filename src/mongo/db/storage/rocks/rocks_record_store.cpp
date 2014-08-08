@@ -535,12 +535,21 @@ namespace mongo {
           _dir( dir ),
           // XXX not using a snapshot here
           _iterator( _rs->_db->NewIterator( rs->_readOptions(), rs->_columnFamily ) ) {
-        _iterator->Seek( rs->_makeKey( start ) );
+        if (start.isNull()) {
+            if ( _forward() )
+                _iterator->SeekToFirst();
+            else
+                _iterator->SeekToLast();
+        }
+        else {
+            _iterator->Seek( rs->_makeKey( start ) );
 
-        if ( !_forward() && !_iterator->Valid() )
-            _iterator->SeekToLast();
-        else if ( !_forward() && _iterator->Valid() && _makeDiskLoc( _iterator->key() ) != start )
-            _iterator->Prev();
+            if ( !_forward() && !_iterator->Valid() )
+                _iterator->SeekToLast();
+            else if ( !_forward() && _iterator->Valid() &&
+                      _makeDiskLoc( _iterator->key() ) != start )
+                _iterator->Prev();
+        }
 
         _checkStatus();
     }
